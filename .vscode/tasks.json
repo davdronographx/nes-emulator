@@ -1,0 +1,25 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "CL Debug Build",
+            "type": "shell",
+            "command": "cl.exe",
+            "args": [
+                "/Zi",
+                "/Fe:",
+                "${workspaceFolder}\\bin\\nes-emulator.exe",
+                "${workspaceFolder}\\src\\nes-emulator.cpp",
+                "/link",
+                "user32.lib"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
