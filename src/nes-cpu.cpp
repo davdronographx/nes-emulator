@@ -15,7 +15,51 @@ struct NesCpuRegisters {
     u8 p;
 };
 
+//$0000 - $1FFF
+struct NesCpuRam {
+    //$0000 - $00FF
+    u8 zero_page[0x0100];
+    //$0100 - $01FF
+    u8 stack[0x0100];
+    //$0200 - $07FF
+    u8 ram[0x0600];
+    //$0800 - $1FFF
+    u8 mirrors[0x1800];
+};
+
+//$2000 - $401F
+struct NesCpuIoRegisters {
+    //$2000 - $2007
+    u8 io_registers_lower[0x0008];
+    //$2008 - $3FFF
+    u8 mirrors[0x1FF8];
+    //$4000 - $401F
+    u8 io_registers_upper[0x0020];
+};
+
+//$8000 - $10000
+struct NesCpuPrgRom {
+    //$8000 - $BFFF
+    u8 lower_bank[0x4000];
+    //$COOO - $10000
+    u8 upper_bank[0x4000];
+};
+
+struct NesCpuMemoryMap {
+    //$0000 - $1FFF
+    NesCpuRam ram;
+    //$2000 - $401F
+    NesCpuIoRegisters io_registers;
+    //$4020 - $5FFF
+    u8 expansion_rom[0x1FE0];
+    //$6000 - $7FFF 
+    u8 sram[0x2000];
+    //$8000 - $10000
+    NesCpuPrgRom prg_rom;
+};
+
 struct NesCpu {
+    NesCpuMemoryMap mem_map;
     NesCpuRegisters registers;    
 };
 
@@ -50,19 +94,21 @@ nes_cpu_flag_read(NesCpu* cpu, u8 flag) {
     return (cpu->registers.p >> flag) & 1;
 }
 
+internal void
+nes_cpu_memory_write(NesCpuMemoryMap* mem_map, u16 address, u8 value) {
+    ((u8*)(&(*mem_map)))[address] = value;
+}
+
+internal u8
+nes_cpu_memory_read(NesCpuMemoryMap* mem_map, u16 address) {
+    return ((u8*)(&(*mem_map)))[address];
+}
+
 internal NesCpu 
 nes_cpu_initialize() {
 
     NesCpu nes_cpu = {0};
 
-    //set
-    nes_cpu_flag_set(&nes_cpu, NES_CPU_FLAG_N);
-    //read
-    u8 value = nes_cpu_flag_read(&nes_cpu, NES_CPU_FLAG_N);
-    //clear
-    nes_cpu_flag_clear(&nes_cpu, NES_CPU_FLAG_N);
-    //read
-    value = nes_cpu_flag_read(&nes_cpu, NES_CPU_FLAG_N);
-
     return nes_cpu;
 }
+
