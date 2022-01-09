@@ -14,4 +14,8 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long u64;
 
+#define global static
+#define internal static
+#define local static
+
 #endif //NES_TYPES_H
