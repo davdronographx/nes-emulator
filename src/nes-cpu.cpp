@@ -148,3 +148,338 @@ nes_cpu_initialize() {
     return nes_cpu;
 }
 
+internal nes_val
+nes_cpu_instr_adc(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_and(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_asl(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_bcc(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_bcs(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_beq(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_bit(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_bmi(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_bne(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_bpl(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_brk(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_bvc(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_bvs(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_clc(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_cld(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_cli(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_clv(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_cmp(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_cpx(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_cpy(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_dec(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_dex(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_dey(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_eor(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_inc(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_inx(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_iny(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_jmp(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_jsr(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_lda(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_ldx(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_ldy(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_lsr(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_nop(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_ora(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_pha(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_php(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_pla(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_plp(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_rol(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_ror(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_rti(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_rts(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_sbc(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_sec(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_sed(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_sei(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_sta(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_stx(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_sty(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_tax(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_tay(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_tsx(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_txa(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_txs(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}
+
+internal nes_val
+nes_cpu_instr_tya(NesCpu* cpu, nes_val operand) {
+    //TODO
+    return 0;
+}

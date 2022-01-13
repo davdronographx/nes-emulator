@@ -160,4 +160,3 @@ enum NesCpuAddressMode {
 
 
 #endif //NES_CPU_HPP
-
