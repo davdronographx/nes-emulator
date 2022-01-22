@@ -10,6 +10,6 @@ i32 WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance,
     PSTR cmd_line, i32 cmd_show)
 {
     NesEmulator nes_emulator = {0};
-    nes_emulator.cpu = nes_cpu_initialize();
+    nes_emulator.cpu = nes_cpu_create_and_initialize();
     return 0;
 }

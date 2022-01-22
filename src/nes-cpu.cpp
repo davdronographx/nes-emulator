@@ -1,5 +1,49 @@
 #include "nes-cpu.hpp"
 
+
+internal void
+nes_cpu_interrupt_reset(NesCpu* cpu) {
+    //TODO - interrupt reset    
+}
+
+internal void
+nes_cpu_interrupt_hardware(NesCpu* cpu) {
+    //TODO - interrupt hardware
+}
+
+internal void
+nes_cpu_interrupt_vblank(NesCpu* cpu) {
+    //TODO - interrupt vblank
+}
+
+internal void
+nes_cpu_interrupt_brk(NesCpu* cpu) {
+    
+    //this is a software interrupt, we start by pushing PC+2 to the stack as the return address
+    //PC+1 is spacing for a break mark and is not needed
+    nes_cpu_stack_push(cpu, NesCpuMemoryRead(cpu, cpu->registers.pc+2));
+    
+    //then we push the status register with the break flag set to 1, but ignore it when retrieved
+    nes_cpu_stack_push(cpu, cpu->registers.p);    
+    
+    //clear the other status values
+    NesCpuFlagClearC(cpu);
+    NesCpuFlagClearZ(cpu);
+    NesCpuFlagClearI(cpu);
+    NesCpuFlagClearD(cpu);
+    NesCpuFlagClearB(cpu);
+    NesCpuFlagClearV(cpu);
+    NesCpuFlagClearN(cpu);
+
+    //set the result interrupt disable flag to true
+    NesCpuFlagSetI(cpu);
+
+    //set the program counter to the proper IRQ address
+    cpu->registers.pc = NES_CPU_IRQ_BRK_ADDR_MSB;
+    cpu->registers.pc <<= 8;
+    cpu->registers.pc += NES_CPU_IRQ_HARDWARE_ADDR_LSB;
+}
+
 internal void
 nes_cpu_stack_push(NesCpu* cpu, nes_val value) {
 
@@ -178,14 +222,6 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu, NesCpuAddressMode 
     return operand_address;
 }
 
-internal NesCpu 
-nes_cpu_initialize() {
-
-    NesCpu nes_cpu = {0};
-
-    return nes_cpu;
-}
-
 internal void
 nes_cpu_instr_adc(NesCpu* cpu, NesCpuAddressMode addr_mode, NesCpuInstrResult* result) {
 
@@ -328,8 +364,9 @@ nes_cpu_instr_bpl(NesCpu* cpu, NesCpuAddressMode addr_mode, NesCpuInstrResult* r
 
 internal nes_val
 nes_cpu_instr_brk(NesCpu* cpu, NesCpuAddressMode addr_mode, NesCpuInstrResult* result) {
-    //TODO
-    return 0;
+    
+    result->flag_b = TRUE;
+    result->cycles += 7;
 }
 
 internal nes_val
@@ -602,49 +639,100 @@ nes_cpu_instr_tya(NesCpu* cpu, NesCpuAddressMode addr_mode, NesCpuInstrResult* r
     return 0;
 }
 
-internal void
-nes_cpu_instr_execute(NesCpu* cpu, nes_val instruction) {
+internal nes_val
+nes_cpu_instr_decode() {
 
-    NesCpuInstrResult result = {0};
+}
+
+internal void
+nes_cpu_instr_execute(NesCpu* cpu, nes_val instruction, NesCpuInstrResult* result) {
+
 
     switch (instruction) {
 
-        case ADC_I:     nes_cpu_instr_adc(cpu, NesCpuAddressMode::immediate,&result); break;
-        case ADC_ZP:    nes_cpu_instr_adc(cpu, NesCpuAddressMode::zero_page,&result); break;
-        case ADC_ZP_X:  nes_cpu_instr_adc(cpu, NesCpuAddressMode::zero_page_indexed_x,&result); break;
-        case ADC_ABS:   nes_cpu_instr_adc(cpu, NesCpuAddressMode::absolute,&result); break;
-        case ADC_ABS_X: nes_cpu_instr_adc(cpu, NesCpuAddressMode::absolute_indexed_x,&result); break;
-        case ADC_ABS_Y: nes_cpu_instr_adc(cpu, NesCpuAddressMode::absolute_indexed_y,&result); break;
-        case ADC_IND_X: nes_cpu_instr_adc(cpu, NesCpuAddressMode::indexed_indirect_x,&result); break;
-        case ADC_IND_Y: nes_cpu_instr_adc(cpu, NesCpuAddressMode::indirect_indexed_y,&result); break;
+        case ADC_I:     nes_cpu_instr_adc(cpu, NesCpuAddressMode::immediate,result); break;
+        case ADC_ZP:    nes_cpu_instr_adc(cpu, NesCpuAddressMode::zero_page,result); break;
+        case ADC_ZP_X:  nes_cpu_instr_adc(cpu, NesCpuAddressMode::zero_page_indexed_x,result); break;
+        case ADC_ABS:   nes_cpu_instr_adc(cpu, NesCpuAddressMode::absolute,result); break;
+        case ADC_ABS_X: nes_cpu_instr_adc(cpu, NesCpuAddressMode::absolute_indexed_x,result); break;
+        case ADC_ABS_Y: nes_cpu_instr_adc(cpu, NesCpuAddressMode::absolute_indexed_y,result); break;
+        case ADC_IND_X: nes_cpu_instr_adc(cpu, NesCpuAddressMode::indexed_indirect_x,result); break;
+        case ADC_IND_Y: nes_cpu_instr_adc(cpu, NesCpuAddressMode::indirect_indexed_y,result); break;
 
-        case AND_I:     nes_cpu_instr_and(cpu, NesCpuAddressMode::immediate,&result); break;
-        case AND_ZP:    nes_cpu_instr_and(cpu, NesCpuAddressMode::zero_page,&result); break;
-        case AND_ZP_X:  nes_cpu_instr_and(cpu, NesCpuAddressMode::zero_page_indexed_x,&result); break;
-        case AND_ABS:   nes_cpu_instr_and(cpu, NesCpuAddressMode::absolute,&result); break;
-        case AND_ABS_X: nes_cpu_instr_and(cpu, NesCpuAddressMode::absolute_indexed_x,&result); break;
-        case AND_ABS_Y: nes_cpu_instr_and(cpu, NesCpuAddressMode::absolute_indexed_y,&result); break;
-        case AND_IND_X: nes_cpu_instr_and(cpu, NesCpuAddressMode::indexed_indirect_x,&result); break;
-        case AND_IND_Y: nes_cpu_instr_and(cpu, NesCpuAddressMode::indirect_indexed_y,&result); break;
+        case AND_I:     nes_cpu_instr_and(cpu, NesCpuAddressMode::immediate,result); break;
+        case AND_ZP:    nes_cpu_instr_and(cpu, NesCpuAddressMode::zero_page,result); break;
+        case AND_ZP_X:  nes_cpu_instr_and(cpu, NesCpuAddressMode::zero_page_indexed_x,result); break;
+        case AND_ABS:   nes_cpu_instr_and(cpu, NesCpuAddressMode::absolute,result); break;
+        case AND_ABS_X: nes_cpu_instr_and(cpu, NesCpuAddressMode::absolute_indexed_x,result); break;
+        case AND_ABS_Y: nes_cpu_instr_and(cpu, NesCpuAddressMode::absolute_indexed_y,result); break;
+        case AND_IND_X: nes_cpu_instr_and(cpu, NesCpuAddressMode::indexed_indirect_x,result); break;
+        case AND_IND_Y: nes_cpu_instr_and(cpu, NesCpuAddressMode::indirect_indexed_y,result); break;
 
-        case ASL_ACC:   nes_cpu_instr_asl(cpu, NesCpuAddressMode::accumulator, &result); break;
-        case ASL_ZP:    nes_cpu_instr_asl(cpu, NesCpuAddressMode::zero_page, &result); break;
-        case ASL_ZPX:   nes_cpu_instr_asl(cpu, NesCpuAddressMode::zero_page_indexed_x, &result); break;
-        case ASL_ABS:   nes_cpu_instr_asl(cpu, NesCpuAddressMode::absolute, &result); break;
-        case ASL_ABS_X: nes_cpu_instr_asl(cpu, NesCpuAddressMode::absolute_indexed_x, &result); break;
+        case ASL_ACC:   nes_cpu_instr_asl(cpu, NesCpuAddressMode::accumulator, result); break;
+        case ASL_ZP:    nes_cpu_instr_asl(cpu, NesCpuAddressMode::zero_page, result); break;
+        case ASL_ZPX:   nes_cpu_instr_asl(cpu, NesCpuAddressMode::zero_page_indexed_x, result); break;
+        case ASL_ABS:   nes_cpu_instr_asl(cpu, NesCpuAddressMode::absolute, result); break;
+        case ASL_ABS_X: nes_cpu_instr_asl(cpu, NesCpuAddressMode::absolute_indexed_x, result); break;
 
         //branches
-        case BCC_REL:   nes_cpu_instr_bcc(cpu, NesCpuAddressMode::relative, &result); break;
-        case BCS_REL:   nes_cpu_instr_bcs(cpu, NesCpuAddressMode::relative, &result); break;
-        case BEQ_REL:   nes_cpu_instr_beq(cpu, NesCpuAddressMode::relative, &result); break;
-        case BMI_REL:   nes_cpu_instr_bmi(cpu, NesCpuAddressMode::relative, &result); break;
-        case BNE_REL:   nes_cpu_instr_bne(cpu, NesCpuAddressMode::relative, &result); break;
-        case BPL_REL:   nes_cpu_instr_bpl(cpu, NesCpuAddressMode::relative, &result); break;
+        case BCC_REL:   nes_cpu_instr_bcc(cpu, NesCpuAddressMode::relative, result); break;
+        case BCS_REL:   nes_cpu_instr_bcs(cpu, NesCpuAddressMode::relative, result); break;
+        case BEQ_REL:   nes_cpu_instr_beq(cpu, NesCpuAddressMode::relative, result); break;
+        case BMI_REL:   nes_cpu_instr_bmi(cpu, NesCpuAddressMode::relative, result); break;
+        case BNE_REL:   nes_cpu_instr_bne(cpu, NesCpuAddressMode::relative, result); break;
+        case BPL_REL:   nes_cpu_instr_bpl(cpu, NesCpuAddressMode::relative, result); break;
 
-
+        
 
 
         //default assume NOP
-        default: nes_cpu_instr_nop(cpu, NesCpuAddressMode::immediate, &result); break;
+        default: nes_cpu_instr_nop(cpu, NesCpuAddressMode::immediate, result); break;
     }
+}
+
+internal void
+nes_cpu_tick(NesCpu* cpu) {
+
+    //get the next cpu instruction
+    local nes_val instr;
+    instr = 0; 
+    NesCpuMemoryReadAndIncrimentProgramCounter(cpu,instr);
+
+    //execute the cpu instruction
+    local NesCpuInstrResult instr_result;
+    instr_result = {0};
+    nes_cpu_instr_execute(cpu, instr, &instr_result);
+
+    //check the flags
+    if (instr_result.flag_c) {
+        NesCpuFlagCheckC(cpu, instr_result.value);
+    }
+    if (instr_result.flag_z) {
+        NesCpuFlagCheckZ(cpu, instr_result.value);
+    }
+    if (instr_result.flag_i) {
+        //TODO - check flag i
+    }
+    if (instr_result.flag_d) {
+        //TODO - checkl flag d
+    }
+    if (instr_result.flag_b) {
+        nes_cpu_interrupt_brk(cpu);
+    }
+    if (instr_result.flag_v) {
+        //TODO - check flag v
+    }
+    if (instr_result.flag_n) {
+        //TODO - check flag n   
+    }
+}
+
+internal NesCpu
+nes_cpu_create_and_initialize() {
+
+    NesCpu cpu = {0};
+    cpu.registers.pc = NES_CPU_MEM_MAP_LOWER_PRG_ROM_ADDR;
+    cpu.registers.sp = NES_CPU_MEM_MAP_STACK_ADDR + NES_CPU_MEM_MAP_STACK_SIZE;
+
+    return cpu;
 }
