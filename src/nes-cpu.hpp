@@ -18,9 +18,16 @@ struct NesCpuRegisters {
     u8 p;
 };
 
-#define NES_CPU_MEM_MAP_ZERO_PAGE_SIZE 0x0100
-#define NES_CPU_MEM_MAP_STACK_SIZE 0x0100
-#define NES_CPU_MEM_MAP_RAM_SIZE 0x0600
+#define NES_CPU_MEM_MAP_ZERO_PAGE_ADDR  0x0000
+#define NES_CPU_MEM_MAP_ZERO_PAGE_SIZE  0x0100
+
+#define NES_CPU_MEM_MAP_STACK_ADDR      0x0100
+#define NES_CPU_MEM_MAP_STACK_SIZE      0x0100
+
+#define NES_CPU_MEM_MAP_RAM_ADDR        0x0200
+#define NES_CPU_MEM_MAP_RAM_SIZE        0x0600
+
+#define NES_CPU_MEM_MAP_RAM_MIRROR_ADDR 0x0800
 #define NES_CPU_MEM_MAP_RAM_MIRROR_SIZE 0x1800
 
 //$0000 - $1FFF
@@ -35,9 +42,14 @@ struct NesCpuRam {
     u8 mirrors[NES_CPU_MEM_MAP_RAM_MIRROR_SIZE];
 };
 
-#define NES_CPU_MEM_MAP_LOWER_IO_REG_SIZE 0x0008
+#define NES_CPU_MEM_MAP_LOWER_IO_REG_ADDR  0x2000
+#define NES_CPU_MEM_MAP_LOWER_IO_REG_SIZE  0x0008
+
+#define NES_CPU_MEM_MAP_IO_REG_MIRROR_ADDR 0x2008
 #define NES_CPU_MEM_MAP_IO_REG_MIRROR_SIZE 0x1FF8
-#define NES_CPU_MEM_MAP_UPPER_IO_REG_SIZE 0x0008
+
+#define NES_CPU_MEM_MAP_UPPER_IO_REG_ADDR  0x4000
+#define NES_CPU_MEM_MAP_UPPER_IO_REG_SIZE  0x0008
 
 //$2000 - $401F
 struct NesCpuIoRegisters {
@@ -49,7 +61,16 @@ struct NesCpuIoRegisters {
     u8 io_registers_upper[NES_CPU_MEM_MAP_UPPER_IO_REG_SIZE];
 };
 
+#define NES_CPU_MEM_MAP_EXPANSION_ROM_ADDR 0x4020
+#define NES_CPU_MEM_MAP_EXPANSION_ROM_SIZE 0x1FE0
+
+#define NES_CPU_MEM_MAP_SRAM_ADDR          0x6000 
+#define NES_CPU_MEM_MAP_SRAM_SIZE          0x2000 
+
+#define NES_CPU_MEM_MAP_LOWER_PRG_ROM_ADDR 0x8000
 #define NES_CPU_MEM_MAP_LOWER_PRG_ROM_SIZE 0x4000
+
+#define NES_CPU_MEM_MAP_UPPER_PRG_ROM_ADDR 0xC000
 #define NES_CPU_MEM_MAP_UPPER_PRG_ROM_SIZE 0x4000
 
 //$8000 - $10000
@@ -59,9 +80,6 @@ struct NesCpuPrgRom {
     //$COOO - $10000
     u8 upper_bank[NES_CPU_MEM_MAP_UPPER_PRG_ROM_SIZE];
 };
-
-#define NES_CPU_MEM_MAP_EXPANSION_ROM_SIZE 0x1FE0
-#define NES_CPU_MEM_MAP_SRAM_SIZE 0x2000 
 
 struct NesCpuMemoryMap {
     //$0000 - $1FFF
@@ -99,10 +117,12 @@ struct NesCpu {
 #define NesCpuFlagSetC(ptr_NesCpu)   SetBitInByte(NES_CPU_FLAG_C,ptr_NesCpu->registers.p)
 #define NesCpuFlagClearC(ptr_NesCpu) ClearBitInByte(NES_CPU_FLAG_C,ptr_NesCpu->registers.p)
 #define NesCpuFlagReadC(ptr_NesCpu)  ReadBitInByte(NES_CPU_FLAG_C,ptr_NesCpu->registers.p)
+#define NesCpuFlagCheckC(ptr_NesCpu,result) if (result > 255) NesCpuFlagSetC(ptr_NesCpu)   
 
 #define NesCpuFlagSetZ(ptr_NesCpu)   SetBitInByte(NES_CPU_FLAG_Z,ptr_NesCpu->registers.p)
 #define NesCpuFlagClearZ(ptr_NesCpu) ClearBitInByte(NES_CPU_FLAG_Z,ptr_NesCpu->registers.p)
 #define NesCpuFlagReadZ(ptr_NesCpu)  ReadBitInByte(NES_CPU_FLAG_Z,ptr_NesCpu->registers.p)
+#define NesCpuFlagCheckZ(ptr_NesCpu, result) if (result == 0) NesCpuFlagSetZ(ptr_NesCpu) 
 
 #define NesCpuFlagSetI(ptr_NesCpu)   SetBitInByte(NES_CPU_FLAG_I,ptr_NesCpu->registers.p)
 #define NesCpuFlagClearI(ptr_NesCpu) ClearBitInByte(NES_CPU_FLAG_I,ptr_NesCpu->registers.p)
@@ -119,6 +139,7 @@ struct NesCpu {
 #define NesCpuFlagSetV(ptr_NesCpu)   SetBitInByte(NES_CPU_FLAG_V,ptr_NesCpu->registers.p)
 #define NesCpuFlagClearV(ptr_NesCpu) ClearBitInByte(NES_CPU_FLAG_V,ptr_NesCpu->registers.p)
 #define NesCpuFlagReadV(ptr_NesCpu)  ReadBitInByte(NES_CPU_FLAG_V,ptr_NesCpu->registers.p)
+#define NesCpuFlagCheckV(ptr_NesCpu, result) if (result > 127) NesCpuFlagSetV(ptr_NesCpu) 
 
 #define NesCpuFlagSetN(ptr_NesCpu)   SetBitInByte(NES_CPU_FLAG_N,ptr_NesCpu->registers.p)
 #define NesCpuFlagClearN(ptr_NesCpu) ClearBitInByte(NES_CPU_FLAG_N,ptr_NesCpu->registers.p)
@@ -136,27 +157,37 @@ enum NesCpuAddressMode {
     accumulator,
     immediate,
     relative,
-    indexed_indirect,
-    indirect_indexed
+    indexed_indirect_x,
+    indirect_indexed_y
 };
 
-#define NesCpuMemoryWrite(ptr_NesMemoryMap, val_nes_addr, val_nes_val) { \
-    ((nes_val*)(&(*ptr_NesMemoryMap)))[val_nes_addr] = val_nes_val \
-}
+#define NesCpuMemoryWrite(ptr_NesCpu, val_nes_addr, val_nes_val) { ((nes_val*)(&ptr_NesCpu->mem_map))[val_nes_addr] = val_nes_val; }
 
-#define NesCpuMemoryRead(ptr_NesMemoryMap, val_nes_addr) ((nes_val*)(&(*ptr_NesMemoryMap)))[val_nes_addr]
+#define NesCpuMemoryRead(ptr_NesCpu, val_nes_addr) ((nes_val*)(&ptr_NesCpu->mem_map))[val_nes_addr]
 
+#define NesCpuMemoryAddress(ptr_NesCpu, val_nes_addr) &(((nes_val*)(&ptr_NesCpu->mem_map))[val_nes_addr])
 
 #define NesCpuMemoryReadAndIncrimentProgramCounter(ptr_NesCpu, val_nes_val)  { \
-    val_nes_val = NesCpuMemoryRead(&ptr_NesCpu->mem_map, ptr_NesCpu->registers.pc); \
+    val_nes_val = NesCpuMemoryRead(ptr_NesCpu, ptr_NesCpu->registers.pc); \
     ++ptr_NesCpu->registers.pc; \
 }
 
 #define NesCpuMemoryReadAndIncrimentProgramCounterIndexed(ptr_NesCpu, val_nes_val_offset, val_nes_val) { \
-    val_nes_val = NesCpuMemoryRead(&ptr_NesCpu->mem_map, ptr_NesCpu->registers.pc); \
+    val_nes_val = NesCpuMemoryRead(ptr_NesCpu, ptr_NesCpu->registers.pc); \
     val_nes_val += val_nes_val_offset; \
     ++ptr_NesCpu->registers.pc; \
 }
 
+struct NesCpuInstrResult {
+    u32 value;
+    u32 cycles;
+    b32 flag_c;
+    b32 flag_z;
+    b32 flag_i;
+    b32 flag_d;
+    b32 flag_b;
+    b32 flag_v;
+    b32 flag_n;
+};
 
 #endif //NES_CPU_HPP
