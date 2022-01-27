@@ -94,11 +94,6 @@ struct NesCpuMemoryMap {
     NesCpuPrgRom prg_rom;
 };
 
-struct NesCpu {
-    NesCpuMemoryMap mem_map;
-    NesCpuRegisters registers;    
-};
-
 //carry flag
 #define NES_CPU_FLAG_C 0
 //zero flag
@@ -190,53 +185,214 @@ struct NesCpuInstrResult {
     b32 flag_n;
 };
 
-#define NES_CPU_IRQ_HARDWARE_ADDR_MSB 0xFFFF
-#define NES_CPU_IRQ_HARDWARE_ADDR_LSB 0xFFFA
+struct NesCpuInstruction {
+    nes_val op_code;
+    nes_val* operand_addr;
+    NesCpuAddressMode addr_mode;
+    NesCpuInstrResult result;
+};
 
-#define NES_CPU_IRQ_BRK_ADDR_MSB 0xFFFF
-#define NES_CPU_IRQ_BRK_ADDR_LSB 0xFFFE
+struct NesCpu {
+    NesCpuMemoryMap mem_map;
+    NesCpuRegisters registers;    
+    NesCpuInstruction current_instr;
+    NesCpuInstruction previous_instr;
+};
 
-#define NES_CPU_IRQ_VBLANK_ADDR_MSB 0xFFFB
-#define NES_CPU_IRQ_VBLANK_ADDR_LSB 0xFFFA
+enum NesCpuInterruptType {
+    IRQ,
+    NMI,
+    RST
+};
 
-#define NES_CPU_IRQ_RESET_ADDR_MSB 
-#define NES_CPU_IRQ_RESET_ADDR_LSB 
+#define NES_CPU_IRQ_ADDR_MSB 0xFFFF
+#define NES_CPU_IRQ_ADDR_LSB 0xFFFE
 
-#define ADC_I     0x69
-#define ADC_ZP    0x65
-#define ADC_ZP_X  0x75
-#define ADC_ABS   0x6D
-#define ADC_ABS_X 0x7D
-#define ADC_ABS_Y 0x79
-#define ADC_IND_X 0x61
-#define ADC_IND_Y 0x71        
+#define NES_CPU_NMI_ADDR_MSB 0xFFFB
+#define NES_CPU_NMI_ADDR_LSB 0xFFFA
 
-#define AND_I     0x29
-#define AND_ZP    0x25
-#define AND_ZP_X  0x35
-#define AND_ABS   0x2D
-#define AND_ABS_X 0x3D
-#define AND_ABS_Y 0x39
-#define AND_IND_X 0x21
-#define AND_IND_Y 0x31
+#define NES_CPU_RST_ADDR_LSB 0xFFFD
+#define NES_CPU_RST_ADDR_MSB 0xFFFC 
 
-#define ASL_ACC   0x0A
-#define ASL_ZP    0x06
-#define ASL_ZPX   0x16
-#define ASL_ABS   0x0E
-#define ASL_ABS_X 0x1E
+////////////////////////////////////
+// NES CPU INSTRUCTIONS
+////////////////////////////////////
 
-#define BCC_REL   0x90
-#define BCS_REL   0xB0
-#define BEQ_REL   0xF0
-#define BMI_REL   0x30
-#define BNE_REL   0xD0
-#define BPL_REL   0x10 
+//accumulator
+#define NES_CPU_INSTR_ASL_ACC   0x0A
+#define NES_CPU_INSTR_LSR_ACC   0x4A
+#define NES_CPU_INSTR_ROL_ACC   0x2A
+#define NES_CPU_INSTR_ROR_ACC   0x6A
 
+//absolute
+#define NES_CPU_INSTR_ADC_ABS   0x6D
+#define NES_CPU_INSTR_AND_ABS   0x2D
+#define NES_CPU_INSTR_ASL_ABS   0x0E
+#define NES_CPU_INSTR_BIT_ABS   0x2C
+#define NES_CPU_INSTR_CMP_ABS   0xCD
+#define NES_CPU_INSTR_CPX_ABS   0xEC
+#define NES_CPU_INSTR_CPY_ABS   0xCC
+#define NES_CPU_INSTR_DEC_ABS   0xCE
+#define NES_CPU_INSTR_EOR_ABS   0x4D
+#define NES_CPU_INSTR_INC_ABS   0xEE
+#define NES_CPU_INSTR_JMP_ABS   0x4C
+#define NES_CPU_INSTR_JSR_ABS   0x20
+#define NES_CPU_INSTR_LDA_ABS   0xAD
+#define NES_CPU_INSTR_LDX_ABS   0xAE
+#define NES_CPU_INSTR_LDY_ABS   0xAC
+#define NES_CPU_INSTR_LSR_ABS   0x4E
+#define NES_CPU_INSTR_ORA_ABS   0x0D
+#define NES_CPU_INSTR_ROL_ABS   0x2E
+#define NES_CPU_INSTR_ROR_ABS   0x6E
+#define NES_CPU_INSTR_SBC_ABS   0xED
+#define NES_CPU_INSTR_STA_ABS   0x8D
+#define NES_CPU_INSTR_STX_ABS   0x8E
+#define NES_CPU_INSTR_STY_ABS   0x8C
 
-//TODO - bit
-//#define BIT_ZP  0x24
-//#define BIT_ABS 0x2C
+//absolute x indexed
+#define NES_CPU_INSTR_ADC_ABS_X 0x7D
+#define NES_CPU_INSTR_AND_ABS_X 0x3D
+#define NES_CPU_INSTR_ASL_ABS_X 0x1E
+#define NES_CPU_INSTR_CMP_ABS_X 0xDD
+#define NES_CPU_INSTR_DEC_ABS_X 0xDE
+#define NES_CPU_INSTR_EOR_ABS_X 0x5D
+#define NES_CPU_INSTR_INC_ABS_X 0xFE
+#define NES_CPU_INSTR_LDA_ABS_X 0xBD
+#define NES_CPU_INSTR_LDY_ABS_X 0xBC
+#define NES_CPU_INSTR_LSR_ABS_X 0x5E
+#define NES_CPU_INSTR_ORA_ABS_X 0x1D
+#define NES_CPU_INSTR_ROL_ABS_X 0x3E
+#define NES_CPU_INSTR_ROR_ABS_X 0x7E
+#define NES_CPU_INSTR_SBC_ABS_X 0xFD
+#define NES_CPU_INSTR_STA_ABS_X 0x9D
 
+//absolute y indexed
+#define NES_CPU_INSTR_ADC_ABS_Y 0x79
+#define NES_CPU_INSTR_AND_ABS_Y 0x39
+#define NES_CPU_INSTR_CMP_ABS_Y 0xD9
+#define NES_CPU_INSTR_EOR_ABS_Y 0x59
+#define NES_CPU_INSTR_LDA_ABS_Y 0xB9
+#define NES_CPU_INSTR_LDX_ABS_Y 0xBE
+#define NES_CPU_INSTR_ORA_ABS_Y 0x19
+#define NES_CPU_INSTR_SBC_ABS_Y 0xF9
+#define NES_CPU_INSTR_STA_ABS_Y 0x99
+
+//immediate
+#define NES_CPU_INSTR_ADC_IMM   0x69
+#define NES_CPU_INSTR_AND_IMM   0x29
+#define NES_CPU_INSTR_CMP_IMM   0xC9
+#define NES_CPU_INSTR_CPX_IMM   0xE0
+#define NES_CPU_INSTR_CPY_IMM   0xC0
+#define NES_CPU_INSTR_EOR_IMM   0x49
+#define NES_CPU_INSTR_LDA_IMM   0xA9
+#define NES_CPU_INSTR_LDX_IMM   0xA2
+#define NES_CPU_INSTR_LDY_IMM   0xA0
+#define NES_CPU_INSTR_ORA_IMM   0x09
+#define NES_CPU_INSTR_SBC_IMM   0xE9
+
+//implied
+#define NES_CPU_INSTR_BRK_IMP   0x00
+#define NES_CPU_INSTR_CLC_IMP   0x18
+#define NES_CPU_INSTR_CLD_IMP   0xD8
+#define NES_CPU_INSTR_CLI_IMP   0x58
+#define NES_CPU_INSTR_CLV_IMP   0xB8
+#define NES_CPU_INSTR_DEX_IMP   0xCA
+#define NES_CPU_INSTR_DEY_IMP   0x88
+#define NES_CPU_INSTR_INX_IMP   0xE8
+#define NES_CPU_INSTR_INY_IMP   0xC8
+#define NES_CPU_INSTR_NOP_IMP   0xEA
+#define NES_CPU_INSTR_PHA_IMP   0x48
+#define NES_CPU_INSTR_PHP_IMP   0x08
+#define NES_CPU_INSTR_PLA_IMP   0x68
+#define NES_CPU_INSTR_PLP_IMP   0x28
+#define NES_CPU_INSTR_RTI_IMP   0x40
+#define NES_CPU_INSTR_RTS_IMP   0x60
+#define NES_CPU_INSTR_SEC_IMP	0x38
+#define NES_CPU_INSTR_SED_IMP	0xF8
+#define NES_CPU_INSTR_SEI_IMP	0x78
+#define NES_CPU_INSTR_TAX_IMP	0xAA
+#define NES_CPU_INSTR_TAY_IMP	0xA8
+#define NES_CPU_INSTR_TSX_IMP	0xBA
+#define NES_CPU_INSTR_TXA_IMP	0x8A
+#define NES_CPU_INSTR_TXS_IMP	0x9A
+#define NES_CPU_INSTR_TYA_IMP	0x98
+
+//indirect
+#define NES_CPU_INSTR_JMP_IND   0x6C
+
+//indirect x indexed
+#define NES_CPU_INSTR_ADC_IND_X 0x61
+#define NES_CPU_INSTR_AND_IND_X 0x21
+#define NES_CPU_INSTR_CMP_IND_X 0xC1
+#define NES_CPU_INSTR_EOR_IND_X 0x41
+#define NES_CPU_INSTR_LDA_IND_X 0xA1
+#define NES_CPU_INSTR_ORA_IND_X 0x01
+#define NES_CPU_INSTR_SBC_IND_X 0xE1
+#define NES_CPU_INSTR_STA_IND_X 0x81
+
+//indirect y indexed
+#define NES_CPU_INSTR_ADC_IND_Y 0x71        
+#define NES_CPU_INSTR_AND_IND_Y 0x31
+#define NES_CPU_INSTR_CMP_IND_Y 0xD1
+#define NES_CPU_INSTR_EOR_IND_Y 0x51
+#define NES_CPU_INSTR_LDA_IND_Y 0xB1
+#define NES_CPU_INSTR_ORA_IND_Y 0x11
+#define NES_CPU_INSTR_SBC_IND_Y 0xF1
+#define NES_CPU_INSTR_STA_IND_Y 0x91
+
+//relative
+#define NES_CPU_INSTR_BCC_REL   0x90
+#define NES_CPU_INSTR_BCS_REL   0xB0
+#define NES_CPU_INSTR_BEQ_REL   0xF0
+#define NES_CPU_INSTR_BMI_REL   0x30
+#define NES_CPU_INSTR_BNE_REL   0xD0
+#define NES_CPU_INSTR_BPL_REL   0x10 
+#define NES_CPU_INSTR_BVC_REL   0x50
+#define NES_CPU_INSTR_BVS_REL   0x70
+
+//zero paged
+#define NES_CPU_INSTR_ADC_ZP    0x65
+#define NES_CPU_INSTR_AND_ZP    0x25
+#define NES_CPU_INSTR_ASL_ZP    0x06
+#define NES_CPU_INSTR_BIT_ZP    0x24
+#define NES_CPU_INSTR_CMP_ZP    0xC5
+#define NES_CPU_INSTR_CPY_ZP    0xC4
+#define NES_CPU_INSTR_DEC_ZP    0xC6
+#define NES_CPU_INSTR_EOR_ZP    0x45
+#define NES_CPU_INSTR_INC_ZP    0xE6
+#define NES_CPU_INSTR_LDA_ZP    0xA5
+#define NES_CPU_INSTR_LDX_ZP    0xA6
+#define NES_CPU_INSTR_LDY_ZP    0xA4
+#define NES_CPU_INSTR_LSR_ZP    0x46
+#define NES_CPU_INSTR_ORA_ZP    0x05
+#define NES_CPU_INSTR_ROL_ZP    0x26
+#define NES_CPU_INSTR_ROR_ZP    0x66
+#define NES_CPU_INSTR_SBC_ZP    0xE5
+#define NES_CPU_INSTR_STA_ZP    0x85
+#define NES_CPU_INSTR_STX_ZP    0x86
+#define NES_CPU_INSTR_STY_ZP    0x84    
+#define NES_CPU_INSTR_CPX_ZP    0xE4
+
+//zero paged x indexed
+#define NES_CPU_INSTR_ADC_ZP_X  0x75
+#define NES_CPU_INSTR_AND_ZP_X  0x35
+#define NES_CPU_INSTR_ASL_ZP_X  0x16
+#define NES_CPU_INSTR_CMP_ZP_X  0xD5
+#define NES_CPU_INSTR_DEC_ZP_X  0xD6
+#define NES_CPU_INSTR_EOR_ZP_X  0x55
+#define NES_CPU_INSTR_INC_ZP_X  0xF6
+#define NES_CPU_INSTR_LDA_ZP_X  0xB5
+#define NES_CPU_INSTR_LDY_ZP_X  0xB4
+#define NES_CPU_INSTR_LSR_ZP_X  0x56
+#define NES_CPU_INSTR_ORA_ZP_X  0x15
+#define NES_CPU_INSTR_ROL_ZP_X  0x36
+#define NES_CPU_INSTR_ROR_ZP_X  0x76
+#define NES_CPU_INSTR_SBC_ZP_X  0xF5
+#define NES_CPU_INSTR_STA_ZP_X  0x95
+#define NES_CPU_INSTR_STY_ZP_X  0x94
+
+//zero paged y indexed
+#define NES_CPU_INSTR_LDX_ZP_Y  0xB6
+#define NES_CPU_INSTR_STX_ZP_Y  0x96
 
 #endif //NES_CPU_HPP
