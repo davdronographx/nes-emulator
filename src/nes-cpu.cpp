@@ -19,7 +19,7 @@ nes_cpu_stack_push(NesCpu* cpu, nes_val value) {
 }
 
 internal nes_val
-nes_cpu_stack_pop(NesCpu* cpu) {
+nes_cpu_stack_pull(NesCpu* cpu) {
 
     nes_val stack_val = NesCpuMemoryRead(cpu, cpu->registers.sp);
 
@@ -319,124 +319,188 @@ nes_cpu_instr_bvc(NesCpu* cpu) {
     cpu->registers.pc += NesCpuFlagReadV(cpu) == 0 ? *cpu->current_instr.operand_addr : 0;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_bvs(NesCpu* cpu) {
     
     cpu->registers.pc += NesCpuFlagReadV(cpu) == 1 ? *cpu->current_instr.operand_addr : 0;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_clc(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    NesCpuFlagClearC(cpu);
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_cld(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    NesCpuFlagClearD(cpu);
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_cli(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    NesCpuFlagClearI(cpu);
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_clv(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    NesCpuFlagClearV(cpu);
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_cmp(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    cpu->current_instr.result.value = (cpu->registers.acc_a - *cpu->current_instr.operand_addr);
+
+    cpu->current_instr.result.flag_c = TRUE;
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_cpx(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    cpu->current_instr.result.value = (cpu->registers.ir_x - *cpu->current_instr.operand_addr);
+    
+    cpu->current_instr.result.flag_c = TRUE;
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_cpy(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    cpu->current_instr.result.value = (cpu->registers.ir_y - *cpu->current_instr.operand_addr);
+    
+    cpu->current_instr.result.flag_c = TRUE;
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_dec(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    --(*cpu->current_instr.operand_addr);
+
+    cpu->current_instr.result.value = *cpu->current_instr.operand_addr;
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_dex(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    --cpu->registers.ir_x;
+
+    cpu->current_instr.result.value = cpu->registers.ir_x;
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_dey(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    --cpu->registers.ir_y;
+
+    cpu->current_instr.result.value = cpu->registers.ir_y;
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_eor(NesCpu* cpu) {
-    //TODO
-    return 0;
+ 
+    cpu->current_instr.result.value = (cpu->registers.acc_a ^ *cpu->current_instr.operand_addr);
+
+    cpu->registers.acc_a = (nes_val)cpu->current_instr.result.value;
+ 
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_inc(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    ++(*cpu->current_instr.operand_addr);
+
+    cpu->current_instr.result.value = *cpu->current_instr.operand_addr;
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_inx(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    ++cpu->registers.ir_x;
+
+    cpu->current_instr.result.value = cpu->registers.ir_x;
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_iny(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    ++cpu->registers.ir_y;
+
+    cpu->current_instr.result.value = cpu->registers.ir_y;
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_jmp(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    cpu->registers.pc = *cpu->current_instr.operand_addr;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_jsr(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    nes_cpu_stack_push(cpu, cpu->registers.sp);
+
+    cpu->registers.pc = *cpu->current_instr.operand_addr;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_lda(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    cpu->registers.acc_a = *cpu->current_instr.operand_addr;
+
+    cpu->current_instr.result.value = cpu->registers.acc_a; 
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
 internal nes_val
 nes_cpu_instr_ldx(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    cpu->registers.ir_x = *cpu->current_instr.operand_addr;
+
+    cpu->current_instr.result.value = cpu->registers.ir_x; 
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
 internal nes_val
 nes_cpu_instr_ldy(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    cpu->registers.ir_y = *cpu->current_instr.operand_addr;
+
+    cpu->current_instr.result.value = cpu->registers.ir_y; 
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
 internal nes_val
@@ -445,40 +509,50 @@ nes_cpu_instr_lsr(NesCpu* cpu) {
     return 0;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_nop(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    //¯\_(ツ)_/¯
 }
 
 internal nes_val
 nes_cpu_instr_ora(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    cpu->current_instr.result.value = (cpu->registers.acc_a | *cpu->current_instr.operand_addr);
+
+    cpu->registers.acc_a = (nes_val)cpu->current_instr.result.value;
+ 
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_pha(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    nes_cpu_stack_push(cpu, cpu->registers.acc_a);
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_php(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    nes_cpu_stack_push(cpu, cpu->registers.p);
 }
 
-internal nes_val
+internal void 
 nes_cpu_instr_pla(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    cpu->registers.acc_a = nes_cpu_stack_pull(cpu);
+
+    cpu->current_instr.result.value = cpu->registers.acc_a;
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_plp(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    cpu->registers.p = nes_cpu_stack_pull(cpu);
 }
 
 internal nes_val
@@ -493,94 +567,130 @@ nes_cpu_instr_ror(NesCpu* cpu) {
     return 0;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_rti(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    cpu->registers.p = nes_cpu_stack_pull(cpu);
+    cpu->registers.pc = nes_cpu_stack_pull(cpu);
+
+    NesCpuFlagClearB(cpu);
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_rts(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    cpu->registers.pc = nes_cpu_stack_pull(cpu) + 1;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_sbc(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    cpu->current_instr.result.value = cpu->registers.acc_a - *cpu->current_instr.operand_addr - NesCpuFlagReadC(cpu);
+    
+    cpu->registers.acc_a = (nes_val)cpu->current_instr.result.value;
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
+    cpu->current_instr.result.flag_c = TRUE;
+    cpu->current_instr.result.flag_v = TRUE;
+    
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_sec(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    NesCpuFlagSetC(cpu);
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_sed(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    NesCpuFlagSetD(cpu);
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_sei(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    NesCpuFlagSetI(cpu);
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_sta(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    *cpu->current_instr.operand_addr = cpu->registers.acc_a;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_stx(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    *cpu->current_instr.operand_addr = cpu->registers.ir_x;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_sty(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    *cpu->current_instr.operand_addr = cpu->registers.ir_y;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_tax(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    cpu->registers.ir_x = cpu->registers.acc_a;
+
+    cpu->current_instr.result.value = cpu->registers.ir_x;
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_tay(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    cpu->registers.ir_y = cpu->registers.acc_a;
+
+    cpu->current_instr.result.value = cpu->registers.ir_y;
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_tsx(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    cpu->registers.ir_x = cpu->registers.sp;
+
+    cpu->current_instr.result.value = cpu->registers.ir_x;
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_txa(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    cpu->registers.acc_a = cpu->registers.ir_x;
+
+    cpu->current_instr.result.value = cpu->registers.acc_a;
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void 
 nes_cpu_instr_txs(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    cpu->registers.sp = cpu->registers.ir_x;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_tya(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    cpu->registers.acc_a = cpu->registers.ir_y;
+
+    cpu->current_instr.result.value = cpu->registers.acc_a;
+
+    cpu->current_instr.result.flag_n = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
 internal void
