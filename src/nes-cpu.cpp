@@ -1166,6 +1166,10 @@ nes_cpu_instr_execute(NesCpu* cpu) {
     if (cpu->current_instr.result.page_boundary_crossed) {
         ++cpu->current_instr.result.cycles;
     }
+
+    //add any cycles from branches
+    //if a branch didn't orrur, it will just be 0
+    cpu->current_instr.result.cycles += cpu->current_instr.result.branch_cycles;
 }
 
 internal void
