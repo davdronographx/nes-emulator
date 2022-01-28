@@ -145,6 +145,9 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
             cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
 
+            cpu->current_instr.result.page_boundary_crossed = 
+                (((addr_upper << 8) + addr_lower) & 0xFF00) != (address * 0xFF00);
+
         } break;
 
         case NesCpuAddressMode::absolute_indexed_y: {
@@ -155,6 +158,9 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
             address = (addr_upper << 8) + addr_lower + cpu->registers.ir_y;
 
             cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
+
+            cpu->current_instr.result.page_boundary_crossed = 
+                (((addr_upper << 8) + addr_lower) & 0xFF00) != (address * 0xFF00);
 
         } break;
 
@@ -205,7 +211,7 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
             nes_addr addr_indirect_lower = NesCpuMemoryRead(cpu,zero_page_addr + cpu->registers.ir_x);
             nes_addr addr_indirect_upper = NesCpuMemoryRead(cpu,zero_page_addr + cpu->registers.ir_x + 1);
 
-            address = (addr_upper << 8) + addr_lower;
+            address = (addr_indirect_upper << 8) + addr_indirect_lower;
 
             cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
 
@@ -220,14 +226,30 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
             nes_addr addr_indirect_lower = NesCpuMemoryRead(cpu,zero_page_addr);
             nes_addr addr_indirect_upper = NesCpuMemoryRead(cpu,zero_page_addr + 1);
 
-            address = (addr_upper << 8) + addr_lower + cpu->registers.ir_y;
+            address = (addr_indirect_upper << 8) + addr_indirect_lower + cpu->registers.ir_y;
 
             cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
+
+            cpu->current_instr.result.page_boundary_crossed = 
+                (((addr_indirect_upper << 8) + addr_indirect_lower) & 0xFF00) != (address * 0xFF00);
 
         } break;
 
         default: break;
     }
+}
+
+internal void
+nes_cpu_branch_and_update_cycles(NesCpu* cpu) {
+
+        //add 1 cycle for branching to same page, add 2 cycles for branching to different page
+        cpu->current_instr.result.branch_cycles = 
+            (cpu->registers.pc & 0xFF00) == ((cpu->registers.pc + *cpu->current_instr.operand_addr) & 0xFF00)
+            ? 1
+            : 2;     
+
+        //update program counter
+        cpu->registers.pc += *cpu->current_instr.operand_addr;
 }
 
 internal void
@@ -265,22 +287,25 @@ nes_cpu_instr_asl(NesCpu* cpu) {
 internal void
 nes_cpu_instr_bcc(NesCpu* cpu) {
 
-    cpu->registers.pc += NesCpuFlagReadC(cpu) == 0 ? *cpu->current_instr.operand_addr : 0;
-
+    if (NesCpuFlagReadC(cpu) == 0) {
+        nes_cpu_branch_and_update_cycles(cpu);
+    }
 }
 
 internal void
 nes_cpu_instr_bcs(NesCpu* cpu) {
 
-    cpu->registers.pc += NesCpuFlagReadC(cpu) == 1 ? *cpu->current_instr.operand_addr : 0;
-
+    if (NesCpuFlagReadC(cpu) == 1) {
+        nes_cpu_branch_and_update_cycles(cpu);
+    }
 }
 
 internal void
 nes_cpu_instr_beq(NesCpu* cpu) {
 
-    cpu->registers.pc += NesCpuFlagReadZ(cpu) == 1 ? *cpu->current_instr.operand_addr : 0;
-
+    if (NesCpuFlagReadZ(cpu) == 1) {
+        nes_cpu_branch_and_update_cycles(cpu);
+    }
 }
 
 internal void
@@ -306,19 +331,25 @@ nes_cpu_instr_bit(NesCpu* cpu) {
 internal void
 nes_cpu_instr_bmi(NesCpu* cpu) {
 
-    cpu->registers.pc += NesCpuFlagReadN(cpu) == 1 ? *cpu->current_instr.operand_addr : 0;
+    if (NesCpuFlagReadN(cpu) == 1) {
+        nes_cpu_branch_and_update_cycles(cpu);
+    }
 }
 
 internal void
 nes_cpu_instr_bne(NesCpu* cpu) {
 
-    cpu->registers.pc += NesCpuFlagReadZ(cpu) == 0 ? *cpu->current_instr.operand_addr : 0;
+    if (NesCpuFlagReadZ(cpu) == 0) {
+        nes_cpu_branch_and_update_cycles(cpu);
+    }
 }
 
 internal void
 nes_cpu_instr_bpl(NesCpu* cpu) {
-
-    cpu->registers.pc += NesCpuFlagReadN(cpu) == 0 ? *cpu->current_instr.operand_addr : 0;
+    
+    if (NesCpuFlagReadN(cpu) == 0) {
+        nes_cpu_branch_and_update_cycles(cpu);
+    }
 }
 
 internal void
@@ -943,8 +974,6 @@ nes_cpu_addr_mode_decode_from_instr(NesCpu* cpu) {
 internal void 
 nes_cpu_instr_execute(NesCpu* cpu) {
 
-    //TODO - additional cycles from page crossing, etc.
-
     switch (cpu->current_instr.op_code) {
 
         case NES_CPU_INSTR_ADC_IMM:   nes_cpu_instr_adc(cpu); cpu->current_instr.result.cycles = 2; break;  
@@ -1127,10 +1156,15 @@ nes_cpu_instr_execute(NesCpu* cpu) {
         case NES_CPU_INSTR_TXA_IMP:   nes_cpu_instr_txa(cpu); cpu->current_instr.result.cycles = 2; break;
         case NES_CPU_INSTR_TXS_IMP:   nes_cpu_instr_txs(cpu); cpu->current_instr.result.cycles = 2; break;
         case NES_CPU_INSTR_TYA_IMP:   nes_cpu_instr_tya(cpu); cpu->current_instr.result.cycles = 2; break;
-        
 
         //default assume NOP
         default: nes_cpu_instr_nop(cpu); break;
+    }
+
+    //if we crossed a page boundary (aka an indexed operation toggled a bit in the MSB)
+    //we add one cycle
+    if (cpu->current_instr.result.page_boundary_crossed) {
+        ++cpu->current_instr.result.cycles;
     }
 }
 
@@ -1156,16 +1190,11 @@ nes_cpu_flag_check(NesCpu* cpu) {
 }
 
 internal void
-nes_cpu_instr_reset(NesCpu* cpu) {
-    cpu->previous_instr = cpu->current_instr;
-    cpu->current_instr = {0};
-}
-
-internal void
 nes_cpu_tick(NesCpu* cpu) {
 
     //set the previous instruction and clear current instruction
-    nes_cpu_instr_reset(cpu);   
+    cpu->previous_instr = cpu->current_instr;
+    cpu->current_instr = {0};
 
     //get the instruction
     NesCpuMemoryReadAndIncrimentProgramCounter(cpu, cpu->current_instr.op_code);

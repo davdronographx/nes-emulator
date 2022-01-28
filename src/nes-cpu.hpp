@@ -178,6 +178,7 @@ enum NesCpuAddressMode {
 struct NesCpuInstrResult {
     u32 value;
     u32 cycles;
+    u32 branch_cycles;
     b32 flag_c;
     b32 flag_z;
     b32 flag_i;
@@ -185,6 +186,7 @@ struct NesCpuInstrResult {
     b32 flag_b;
     b32 flag_v;
     b32 flag_n;
+    b32 page_boundary_crossed;
 };
 
 struct NesCpuInstruction {
