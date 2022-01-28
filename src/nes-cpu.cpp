@@ -283,10 +283,24 @@ nes_cpu_instr_beq(NesCpu* cpu) {
 
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_bit(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    //transfer bit 6 of operand to V flag
+    NesCpuFlagClearV(cpu);
+    if (ReadBitInByte(6, *cpu->current_instr.operand_addr) == 1) {
+        NesCpuFlagSetV(cpu);
+    }
+
+    //transfer bit 7 of operand to N flag
+    NesCpuFlagClearN(cpu);
+    if (ReadBitInByte(7, *cpu->current_instr.operand_addr) == 1) {
+        NesCpuFlagSetN(cpu);
+    }
+
+    //the result of A and Operand will be used for the zero flag
+    cpu->current_instr.result.value = (cpu->registers.acc_a & *cpu->current_instr.operand_addr);
+    cpu->current_instr.result.flag_z = TRUE;
 }
 
 internal void
@@ -503,10 +517,17 @@ nes_cpu_instr_ldy(NesCpu* cpu) {
     cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_lsr(NesCpu* cpu) {
-    //TODO
-    return 0;
+    
+    cpu->current_instr.result.value = *cpu->current_instr.operand_addr;
+    cpu->current_instr.result.value >>= 1;
+    
+    *cpu->current_instr.operand_addr = (nes_val)cpu->current_instr.result.value;
+
+    cpu->current_instr.result.flag_c = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
+    NesCpuFlagClearN(cpu);
 }
 
 internal void
@@ -557,13 +578,32 @@ nes_cpu_instr_plp(NesCpu* cpu) {
 
 internal nes_val
 nes_cpu_instr_rol(NesCpu* cpu) {
-    //TODO
-    return 0;
+
+    cpu->current_instr.result.value = *cpu->current_instr.operand_addr;
+    cpu->current_instr.result.value <<= 1;
+    
+    *cpu->current_instr.operand_addr = (nes_val)cpu->current_instr.result.value;
+
+    *cpu->current_instr.operand_addr += NesCpuFlagReadC(cpu);
+
+    cpu->current_instr.result.flag_c = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
+    cpu->current_instr.result.flag_n = TRUE;
 }
 
 internal nes_val
 nes_cpu_instr_ror(NesCpu* cpu) {
-    //TODO
+    
+    cpu->current_instr.result.value = *cpu->current_instr.operand_addr;
+    cpu->current_instr.result.value >>= 1;
+    cpu->current_instr.result.value += (NesCpuFlagReadC(cpu) << 8);
+
+    cpu->current_instr.result.value = *cpu->current_instr.operand_addr;
+
+    cpu->current_instr.result.flag_c = TRUE;
+    cpu->current_instr.result.flag_z = TRUE;
+    cpu->current_instr.result.flag_n = TRUE;
+    
     return 0;
 }
 
@@ -1104,20 +1144,14 @@ nes_cpu_flag_check(NesCpu* cpu) {
     if (cpu->current_instr.result.flag_z) {
         NesCpuFlagCheckZ(cpu, cpu->current_instr.result.value);
     }
-    if (cpu->current_instr.result.flag_i) {
-        //TODO - check flag i
-    }
-    if (cpu->current_instr.result.flag_d) {
-        //TODO - checkl flag d
-    }
-    if (cpu->current_instr.result.flag_b) {
+    if (cpu->current_instr.result.flag_b && NesCpuFlagReadI(cpu) == 0) {
         nes_cpu_interrupt(cpu, NesCpuInterruptType::IRQ);
     }
     if (cpu->current_instr.result.flag_v) {
-        //TODO - check flag v
+        NesCpuFlagCheckV(cpu, cpu->current_instr.result.value);
     }
     if (cpu->current_instr.result.flag_n) {
-        //TODO - check flag n   
+        NesCpuFlagCheckN(cpu, cpu->current_instr.result.value);
     }
 }
 

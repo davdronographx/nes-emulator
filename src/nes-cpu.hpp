@@ -134,11 +134,13 @@ struct NesCpuMemoryMap {
 #define NesCpuFlagSetV(ptr_NesCpu)   SetBitInByte(NES_CPU_FLAG_V,ptr_NesCpu->registers.p)
 #define NesCpuFlagClearV(ptr_NesCpu) ClearBitInByte(NES_CPU_FLAG_V,ptr_NesCpu->registers.p)
 #define NesCpuFlagReadV(ptr_NesCpu)  ReadBitInByte(NES_CPU_FLAG_V,ptr_NesCpu->registers.p)
-#define NesCpuFlagCheckV(ptr_NesCpu, result) if (result > 127) NesCpuFlagSetV(ptr_NesCpu) 
+#define NesCpuFlagCheckV(ptr_NesCpu, result) if (result > 0xFF) NesCpuFlagSetV(ptr_NesCpu) 
 
 #define NesCpuFlagSetN(ptr_NesCpu)   SetBitInByte(NES_CPU_FLAG_N,ptr_NesCpu->registers.p)
 #define NesCpuFlagClearN(ptr_NesCpu) ClearBitInByte(NES_CPU_FLAG_N,ptr_NesCpu->registers.p)
 #define NesCpuFlagReadN(ptr_NesCpu)  ReadBitInByte(NES_CPU_FLAG_N,ptr_NesCpu->registers.p)
+#define NesCpuFlagCheckN(ptr_NesCpu, result) if (result > 127) NesCpuFlagSetN(ptr_NesCpu) 
+
 
 enum NesCpuAddressMode {
     zero_page,
