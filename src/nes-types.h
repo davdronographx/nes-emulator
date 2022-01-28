@@ -14,8 +14,22 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long u64;
 
+typedef u8 nes_val;
+typedef u16 nes_addr;
+
+typedef i32 b32;
+
+#define TRUE 1
+#define FALSE -1
+
 #define global static
 #define internal static
 #define local static
+
+#define SetBitInByte(val_bit_index, val_byte)   val_byte |= 1 << val_bit_index
+#define ClearBitInByte(val_bit_index, val_byte) val_byte &= ~(1 << val_bit_index)
+#define ReadBitInByte(val_bit_index, val_byte)  (val_byte >> val_bit_index) & 1
+
+
 
 #endif //NES_TYPES_H
