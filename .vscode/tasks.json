@@ -4,14 +4,25 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Copy ROM Files to bin directory",
+            "type": "shell",
+            "command": "xcopy",
+            "args": [
+                "${workspaceFolder}\\rom\\*.nes",
+                "${workspaceFolder}\\bin",
+                "/y"
+            ],
+            "problemMatcher": []
+        },
+        {
             "label": "CL Debug Build",
             "type": "shell",
             "command": "cl.exe",
             "args": [
-                "/Zi",
+                "-/Zi",
                 "/Fe:",
                 "${workspaceFolder}\\bin\\nes-emulator.exe",
-                "${workspaceFolder}\\src\\nes-emulator.cpp",
+                "${workspaceFolder}\\src\\nes-win32-main.cpp",
                 "/link",
                 "user32.lib"
             ],
@@ -19,7 +30,8 @@
             "group": {
                 "kind": "build",
                 "isDefault": true
-            }
+            },
+
         }
     ]
 }

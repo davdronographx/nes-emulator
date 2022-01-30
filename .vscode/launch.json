@@ -9,9 +9,9 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}\\bin\\nes-emulator.exe",
-            "args": [],
+            "args": ["super-mario-brothers.nes"],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}\\bin",
             "environment": [],
         }
     ]

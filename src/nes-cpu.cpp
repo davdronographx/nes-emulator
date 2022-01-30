@@ -1194,6 +1194,11 @@ nes_cpu_flag_check(NesCpu* cpu) {
 }
 
 internal void
+nes_cpu_log_current_instr(NesCpu* cpu) {
+
+}
+
+internal void
 nes_cpu_tick(NesCpu* cpu) {
 
     //set the previous instruction and clear current instruction
@@ -1214,6 +1219,12 @@ nes_cpu_tick(NesCpu* cpu) {
 
     //check the flags affected by the result
     nes_cpu_flag_check(cpu);
+
+#if NES_CPU_DEBUG_LOG
+
+    nes_cpu_log_current_instr(cpu);
+
+#endif  
 }
 
 internal NesCpu

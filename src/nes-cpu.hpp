@@ -3,6 +3,8 @@
 
 #include "nes-types.h"
 
+#define NES_CPU_DEBUG_LOG 1
+
 struct NesCpuRegisters {
     //program counter
     u16 pc;

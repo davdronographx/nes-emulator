@@ -1,7 +1,7 @@
 #ifndef NES_TYPES_H
 #define NES_TYPES_H
 
-#define ASSERT(x) if (!x) *((int*)(NULL)) = 1
+#define ASSERT(x) if (!(x)){ (*(int*)(NULL)) = 1; }
 
 //data types
 typedef char i8;  
@@ -30,6 +30,9 @@ typedef i32 b32;
 #define ClearBitInByte(val_bit_index, val_byte) val_byte &= ~(1 << val_bit_index)
 #define ReadBitInByte(val_bit_index, val_byte)  (val_byte >> val_bit_index) & 1
 
-
+struct Buffer {
+    u64 buffer_size;
+    char* buffer_contents;
+};
 
 #endif //NES_TYPES_H
