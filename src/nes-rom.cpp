@@ -4,17 +4,19 @@ internal NesRomMapperType
 nes_rom_get_rom_mapper_type_from_mapper_number(u8 mapper_number) {
     
     switch (mapper_number) {
-        case 0:  return nrom;
-        case 1:  return nintendo_mmc_1;
-        case 2:  return unrom_switch;
-        case 3:  return cnrom_switch;
-        case 4:  return nintendo_mmc_3;
-        case 5:  return nintendo_mmc_5;
-        case 6:  return ffe_f4xxx;
-        case 7:  return aorom_switch;
-        case 8:  return ffe_f3xxx;
-        case 9:  return nintendo_mmc_2;
-        case 10: return nintendo_mmc_4;
+        case NES_ROM_MAPPER_NROM:            return nrom;
+        case NES_ROM_MAPPER_NINTENDO_MMC_1:  return nintendo_mmc_1;
+        case NES_ROM_MAPPER_UNROM_SWITCH:    return unrom_switch;
+        case NES_ROM_MAPPER_CNROM_SWITCH:    return cnrom_switch;
+        case NES_ROM_MAPPER_NINTENDO_MMC_3:  return nintendo_mmc_3;
+        case NES_ROM_MAPPER_NINTENDO_MMC_5:  return nintendo_mmc_5;
+        case NES_ROM_MAPPER_FFE_F4XXX:       return ffe_f4xxx;
+        case NES_ROM_MAPPER_AOROM_SWITCH:    return aorom_switch;
+        case NES_ROM_MAPPER_FFE_F3XXX:       return ffe_f3xxx;
+        case NES_ROM_MAPPER_NINTENDO_MMC_2:  return nintendo_mmc_2;
+        case NES_ROM_MAPPER_NINTENDO_MMC_4:  return nintendo_mmc_4;
+        //defasult assume no mapper / NROM
+        default:                             return nrom;
     }
 }
 
