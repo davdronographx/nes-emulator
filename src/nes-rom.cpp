@@ -1,50 +1,4 @@
-#include "nes-types.h"
-#include <stdio.h>
-#include <string.h>
-
-enum NesRomMapperType {
-    nrom,
-    nintendo_mmc_1,
-    unrom_switch,
-    cnrom_switch,
-    nintendo_mmc_3,
-    nintendo_mmc_5,
-    ffe_f4xxx,
-    aorom_switch,
-    ffe_f3xxx,
-    nintendo_mmc_2,
-    nintendo_mmc_4
-};
-
-enum NesRomMirroringType {
-    horizontal,
-    vertical,
-    four_screen
-};
-
-struct NesRomFileHeader {
-    b32 valid;
-    u32 count_16kb_prg_rom_banks;
-    u32 count_8kb_vrom_banks;
-    b32 battery_backed_ram_present;
-    b32 trainer_present_512_bytes;
-    NesRomMirroringType mirroring_type;
-    NesRomMapperType mapper_type;
-};
-
-struct NesRom {
-    NesRomFileHeader header;
-};
-
-#define NES_ROM_HEADER_SIZE 16
-#define NES_ROM_HEADER_STR "NES"
-#define NES_ROM_HEADER_FORMAT_BYTE 0x1A
-
-#define NES_ROM_HEADER_FORMAT_BYTE_INDEX        3
-#define NES_ROM_HEADER_COUNT_PRG_ROM_BYTE_INDEX 4
-#define NES_ROM_HEADER_COUNT_VROM__BYTE_INDEX   5
-#define NES_ROM_HEADER_CTRL_1_BYTE_INDEX        6
-#define NES_ROM_HEADER_CTRL_2_BYTE_INDEX        7
+#include "nes-rom.hpp"
 
 internal NesRomMapperType
 nes_rom_get_rom_mapper_type_from_mapper_number(u8 mapper_number) {
@@ -114,17 +68,69 @@ nes_rom_parse_file_header(char* rom_file_header_str) {
 
     u8 mapper_number = mapper_number_msb | (mapper_number_lsb >> 4);
 
+    rom_header.count_8kb_ram_banks = rom_file_header_str[NES_ROM_HEADER_COUNT_RAM_BYTE_INDEX];
+
     return rom_header;
+}
+
+
+internal NesRomPrgRomBank* 
+nes_rom_prg_rom_create_and_initialize(char* nes_rom_str, u32 count_prg_rom_banks) {
+
+    //allocate memory for the prg rom
+    NesRomPrgRomBank* prg_rom = (NesRomPrgRomBank*)malloc(count_prg_rom_banks * sizeof(NesRomPrgRomBank));
+
+    for (u32 bank_index = 0; bank_index < count_prg_rom_banks; ++bank_index) {
+        memmove(prg_rom[bank_index].memory, 
+                &nes_rom_str[(bank_index * NES_ROM_SIZE_PRG_ROM_BANK) + NES_ROM_SIZE_HEADER], 
+                NES_ROM_SIZE_PRG_ROM_BANK);
+    }
+
+    return prg_rom;
+}
+
+internal void
+nes_rom_prg_rom_destroy(NesRomPrgRomBank* prg_rom, u32 count_prg_rom_banks) {
+    
+    for (u32 i; i < count_prg_rom_banks; ++i) {
+        prg_rom[i] = {0};
+    }
+    free(nes_rom_prg_rom_destroy);
+}
+
+internal void
+nes_rom_destroy(NesRom* rom) {
+
+    nes_rom_prg_rom_destroy(rom->prg_rom, rom->header.count_16kb_prg_rom_banks);
+}
+
+internal NesRomChrRomBank*
+nes_rom_chr_rom_create_and_initialize(char* nes_rom_str, u32 count_chr_rom_banks, u32 count_prg_rom_banks) {
+
+    //allocate memory for the chr rom
+    NesRomChrRomBank* chr_rom = (NesRomChrRomBank*)malloc(count_chr_rom_banks * sizeof(NesRomChrRomBank)); 
+
+    for (u32 bank_index = 0; bank_index < count_chr_rom_banks; ++bank_index) {
+        memmove(
+            chr_rom[bank_index].memory,
+            &nes_rom_str[(bank_index * NES_ROM_SIZE_VROM_BANK) + (NES_ROM_SIZE_PRG_ROM_BANK * count_prg_rom_banks) + NES_ROM_SIZE_HEADER],
+            NES_ROM_SIZE_VROM_BANK
+        );
+    }
+
+    return chr_rom;
 }
 
 internal NesRom
 nes_rom_create_and_initialize(Buffer rom_buffer) {
     
-    char rom_file_header_str[NES_ROM_HEADER_SIZE];
-    memcpy(rom_file_header_str, rom_buffer.buffer_contents, NES_ROM_HEADER_SIZE);
+    char rom_file_header_str[NES_ROM_SIZE_HEADER];
+    memcpy(rom_file_header_str, rom_buffer.buffer_contents, NES_ROM_SIZE_HEADER);
 
-    NesRom rom = {0};
-    rom.header = nes_rom_parse_file_header(rom_file_header_str);    
-
+    NesRom rom  = {0};
+    rom.header  = nes_rom_parse_file_header(rom_file_header_str);
+    rom.prg_rom = nes_rom_prg_rom_create_and_initialize(rom_buffer.buffer_contents, rom.header.count_16kb_prg_rom_banks);
+    rom.chr_rom = nes_rom_chr_rom_create_and_initialize(rom_buffer.buffer_contents, rom.header.count_8kb_vrom_banks, rom.header.count_16kb_prg_rom_banks);
+    
     return rom;
 }
