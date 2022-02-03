@@ -1,5 +1,11 @@
 #include "nes-cpu.hpp"
 
+internal void
+nes_cpu_update_prg_rom(NesCpu* cpu, nes_val* low_bank, nes_val* high_bank) {
+
+    memmove(cpu->mem_map.prg_rom.lower_bank, low_bank,  NES_CPU_MEM_MAP_LOWER_PRG_ROM_SIZE); 
+    memmove(cpu->mem_map.prg_rom.upper_bank, high_bank, NES_CPU_MEM_MAP_UPPER_PRG_ROM_SIZE); 
+}
 
 internal void
 nes_cpu_stack_push(NesCpu* cpu, nes_val value) {
@@ -526,7 +532,7 @@ nes_cpu_instr_lda(NesCpu* cpu) {
     cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_ldx(NesCpu* cpu) {
 
     cpu->registers.ir_x = *cpu->current_instr.operand_addr;
@@ -537,7 +543,7 @@ nes_cpu_instr_ldx(NesCpu* cpu) {
     cpu->current_instr.result.flag_z = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_ldy(NesCpu* cpu) {
 
     cpu->registers.ir_y = *cpu->current_instr.operand_addr;
@@ -567,7 +573,7 @@ nes_cpu_instr_nop(NesCpu* cpu) {
     //¯\_(ツ)_/¯
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_ora(NesCpu* cpu) {
     
     cpu->current_instr.result.value = (cpu->registers.acc_a | *cpu->current_instr.operand_addr);
@@ -607,7 +613,7 @@ nes_cpu_instr_plp(NesCpu* cpu) {
     cpu->registers.p = nes_cpu_stack_pull(cpu);
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_rol(NesCpu* cpu) {
 
     cpu->current_instr.result.value = *cpu->current_instr.operand_addr;
@@ -622,7 +628,7 @@ nes_cpu_instr_rol(NesCpu* cpu) {
     cpu->current_instr.result.flag_n = TRUE;
 }
 
-internal nes_val
+internal void
 nes_cpu_instr_ror(NesCpu* cpu) {
     
     cpu->current_instr.result.value = *cpu->current_instr.operand_addr;
@@ -634,8 +640,6 @@ nes_cpu_instr_ror(NesCpu* cpu) {
     cpu->current_instr.result.flag_c = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
     cpu->current_instr.result.flag_n = TRUE;
-    
-    return 0;
 }
 
 internal void

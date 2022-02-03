@@ -29,6 +29,11 @@ struct NesRomChrRomBank {
     nes_val memory[NES_ROM_SIZE_VROM_BANK];
 };
 
+struct NesRomPrgRomBankRead  {
+    NesRomPrgRomBank low_bank;
+    NesRomPrgRomBank high_bank;
+};
+
 enum NesRomMapperType {
     nrom,
     nintendo_mmc_1,

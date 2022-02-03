@@ -20,8 +20,8 @@ struct NesEmulatorPlatformCallbacks {
 
 struct NesEmulator {
     NesCpu cpu;
-    NesEmulatorPlatformCallbacks platform_callbacks;
     NesRom rom;
+    NesEmulatorPlatformCallbacks platform_callbacks;
 };
 
 

@@ -19,6 +19,7 @@
             "type": "shell",
             "command": "cl.exe",
             "args": [
+                "/w",
                 "/Zi",
                 "/Fe:",
                 "${workspaceFolder}\\bin\\nes-emulator.exe",

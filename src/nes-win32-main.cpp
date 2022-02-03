@@ -16,8 +16,10 @@ nes_win32_main_close_and_free_file_for_nes_emulator(NesEmulatorFileBuffer* file_
 }
 
 internal void
-nes_win32_main_loop(NesEmulator nes_emulator) {
-    //TODO
+nes_win32_main_loop(NesEmulator* nes_emulator) {
+
+    //todo - we need to loop this, but we can wait until we have a way for the user to escape
+    nes_emulator_update_and_render(nes_emulator);
 }
 
 i32 WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance,
@@ -29,6 +31,7 @@ i32 WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance,
 
     //TODO - we should probably tokenize the cmd line, but for now we are only passing in one argument
     NesEmulator nes_emulator = nes_emulator_create_and_initialize(cmd_line, platform_callbacks);
-    nes_win32_main_loop(nes_emulator);
+    nes_win32_main_loop(&nes_emulator);
+    
     return 0;
 }

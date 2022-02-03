@@ -136,3 +136,29 @@ nes_rom_create_and_initialize(Buffer rom_buffer) {
     
     return rom;
 }
+
+internal NesRomPrgRomBankRead
+nes_rom_mmc_nrom_read(NesRom* rom) {
+
+    NesRomPrgRomBankRead read_bank = {0};
+
+    if (rom->header.count_16kb_prg_rom_banks > 0) {
+        memmove(read_bank.low_bank.memory,  rom->prg_rom[0].memory, NES_ROM_SIZE_PRG_ROM_BANK);
+    }
+    if (rom->header.count_16kb_prg_rom_banks > 1) {
+        memmove(read_bank.high_bank.memory, rom->prg_rom[1].memory, NES_ROM_SIZE_PRG_ROM_BANK);
+    }
+
+    return read_bank;
+}
+
+internal NesRomPrgRomBankRead
+nes_rom_prg_rom_read(NesRom* rom) {
+
+    switch(rom->header.mapper_type) {
+        case NesRomMapperType::nrom: return nes_rom_mmc_nrom_read(rom);
+        //there's no way we can successfully run the emulation without a properly defined mapper
+        default: Fatal();
+    }
+
+}
