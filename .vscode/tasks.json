@@ -19,7 +19,7 @@
             "type": "shell",
             "command": "cl.exe",
             "args": [
-                "-/Zi",
+                "/Zi",
                 "/Fe:",
                 "${workspaceFolder}\\bin\\nes-emulator.exe",
                 "${workspaceFolder}\\src\\nes-win32-main.cpp",
