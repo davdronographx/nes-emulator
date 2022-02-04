@@ -2,8 +2,10 @@
 #define NES_CPU_HPP
 
 #include "nes-types.h"
+#include "stdio.h"
 
 #define NES_CPU_DEBUG_LOG 1
+
 
 struct NesCpuRegisters {
     //program counter
@@ -203,6 +205,7 @@ struct NesCpu {
     NesCpuRegisters registers;    
     NesCpuInstruction current_instr;
     NesCpuInstruction previous_instr;
+    char* debug_str;
 };
 
 enum NesCpuInterruptType {

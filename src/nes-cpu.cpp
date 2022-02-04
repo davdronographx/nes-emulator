@@ -1200,6 +1200,10 @@ nes_cpu_flag_check(NesCpu* cpu) {
 internal void
 nes_cpu_log_current_instr(NesCpu* cpu) {
 
+    char pc_str[50];
+    sprintf(pc_str, "PC: $%04x",cpu->registers.pc);
+
+    sprintf(cpu->debug_str, pc_str);
 }
 
 internal void
