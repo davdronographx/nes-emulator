@@ -32,6 +32,8 @@ typedef i32 b32;
 #define ClearBitInByte(val_bit_index, val_byte) val_byte &= ~(1 << val_bit_index)
 #define ReadBitInByte(val_bit_index, val_byte)  (val_byte >> val_bit_index) & 1
 
+#define BUFFER_DEFAULT_SIZE 256
+
 struct Buffer {
     u64 buffer_size;
     char* buffer_contents;

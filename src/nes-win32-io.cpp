@@ -11,6 +11,25 @@ nes_win32_io_completion_routine(u64 error_code,
     bytes_read = bytes_transferred;
 }
 
+internal void
+nes_win32_io_open_and_write_file(char* file_name, char* write_str) {
+
+    //create the file handle used for reading the file
+    HANDLE file_handle = CreateFileA(file_name,
+                                    GENERIC_WRITE,
+                                    FILE_SHARE_WRITE,
+                                    NULL,
+                                    OPEN_ALWAYS,
+                                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
+                                    NULL);
+
+    ASSERT(file_handle != INVALID_HANDLE_VALUE);
+
+    //close the file
+    CloseHandle(file_handle);
+
+
+}
 
 internal Buffer 
 nes_win32_io_open_and_read_file(char *file_name) {
