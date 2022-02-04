@@ -12,10 +12,12 @@ struct NesEmulatorFileBuffer {
 
 typedef void (*file_read_callback)(NesEmulatorFileBuffer* file_buffer);
 typedef void (*file_close_callback)(NesEmulatorFileBuffer* file_buffer);
+typedef void (*file_write_callback)(NesEmulatorFileBuffer* file_buffer);
 
 struct NesEmulatorPlatformCallbacks {
     file_read_callback open_and_read_file;
     file_close_callback close_and_free_file;
+    file_write_callback open_and_write_to_file;
 };
 
 struct NesEmulator {

@@ -160,5 +160,4 @@ nes_rom_prg_rom_read(NesRom* rom) {
         //there's no way we can successfully run the emulation without a properly defined mapper
         default: Fatal();
     }
-
 }

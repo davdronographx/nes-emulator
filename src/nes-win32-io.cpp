@@ -12,7 +12,7 @@ nes_win32_io_completion_routine(u64 error_code,
 }
 
 internal void
-nes_win32_io_open_and_write_file(char* file_name, char* write_str) {
+nes_win32_io_open_and_write_file(char* file_name, char* write_str, u32 write_str_size) {
 
     //create the file handle used for reading the file
     HANDLE file_handle = CreateFileA(file_name,
@@ -25,10 +25,17 @@ nes_win32_io_open_and_write_file(char* file_name, char* write_str) {
 
     ASSERT(file_handle != INVALID_HANDLE_VALUE);
 
+    OVERLAPPED overlapped = {0};
+    b32 write_result = WriteFileEx(file_handle,
+                                   write_str,
+                                   write_str_size,
+                                   &overlapped,
+                                   nes_win32_io_completion_routine);
+
+    ASSERT(write_result);
+
     //close the file
     CloseHandle(file_handle);
-
-
 }
 
 internal Buffer 
