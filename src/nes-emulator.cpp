@@ -35,6 +35,9 @@ nes_emulator_update_and_render(NesEmulator* emulator) {
     NesRomPrgRomBankRead rom_read = nes_rom_prg_rom_read(&emulator->rom);
     nes_cpu_update_prg_rom(&emulator->cpu, rom_read.low_bank.memory, rom_read.high_bank.memory);
 
+    //reset and we are ready to go
+    nes_cpu_reset(&emulator->cpu);
+
     //hold on to your butts...
     nes_cpu_tick(&emulator->cpu);
 

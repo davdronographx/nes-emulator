@@ -10,15 +10,15 @@ nes_cpu_update_prg_rom(NesCpu* cpu, nes_val* low_bank, nes_val* high_bank) {
 internal void
 nes_cpu_stack_push(NesCpu* cpu, nes_val value) {
 
-    NesCpuMemoryWrite(cpu, cpu->registers.sp, value);
+    NesCpuMemoryWrite(cpu, (cpu->registers.sp + NES_CPU_MEM_MAP_STACK_ADDR), value);
     
     //the stack goes in reverse, so if we are getting down to the beginning
     //of the stack's address space, we need to reset the stack pointer to the
     //top
 
     //otherwise, we just decrement the stack pointer
-    if (cpu->registers.sp == (NES_CPU_MEM_MAP_ZERO_PAGE_ADDR)) {
-        cpu->registers.sp += NES_CPU_MEM_MAP_ZERO_PAGE_SIZE;
+    if (cpu->registers.sp == NES_CPU_MEM_MAP_STACK_PTR_END) {
+        cpu->registers.sp = NES_CPU_MEM_MAP_STACK_PTR_BEGIN;
     } else {
         --cpu->registers.sp;
     }
@@ -27,14 +27,14 @@ nes_cpu_stack_push(NesCpu* cpu, nes_val value) {
 internal nes_val
 nes_cpu_stack_pull(NesCpu* cpu) {
 
-    nes_val stack_val = NesCpuMemoryRead(cpu, cpu->registers.sp);
+    nes_val stack_val = NesCpuMemoryRead(cpu, (NES_CPU_MEM_MAP_STACK_ADDR + cpu->registers.sp));
 
     //update the stack pointer
     //the stack is reverse, so we incriment the pointer
     //if it gets to the top of the stack's address space,
     //it needs to be reset to the bottom 
-    if (cpu->registers.sp == (NES_CPU_MEM_MAP_STACK_ADDR + NES_CPU_MEM_MAP_STACK_SIZE)) {
-        cpu->registers.sp = NES_CPU_MEM_MAP_STACK_ADDR;
+    if (cpu->registers.sp == NES_CPU_MEM_MAP_STACK_PTR_BEGIN) {
+        cpu->registers.sp = NES_CPU_MEM_MAP_STACK_PTR_END;
     } else {
         ++cpu->registers.sp;
     }
@@ -59,31 +59,24 @@ nes_cpu_interrupt(NesCpu* cpu, NesCpuInterruptType interrupt_type) {
     nes_cpu_stack_push(cpu, cpu->registers.p);    
 
     //set the address for the interrupt routine
-    nes_val interrupt_routine_addr_lsb = 0;
-    nes_val interrupt_routine_addr_msb = 0;
     switch (interrupt_type) {
         case NesCpuInterruptType::IRQ: {
-            interrupt_routine_addr_lsb = NES_CPU_IRQ_ADDR_LSB;
-            interrupt_routine_addr_msb = NES_CPU_IRQ_ADDR_MSB;
+            cpu->registers.pc = NES_CPU_INTERRUPT_VECTOR_BRK;
         } break;
         case NesCpuInterruptType::NMI: {
-            interrupt_routine_addr_lsb = NES_CPU_NMI_ADDR_LSB;
-            interrupt_routine_addr_msb = NES_CPU_NMI_ADDR_MSB;
+            cpu->registers.pc = NES_CPU_INTERRUPT_VECTOR_NMI;
         } break;
         case NesCpuInterruptType::RST: {
-            interrupt_routine_addr_lsb = NES_CPU_RST_ADDR_LSB;
-            interrupt_routine_addr_msb = NES_CPU_RST_ADDR_MSB;
+            cpu->registers.pc = NES_CPU_INTERRUPT_VECTOR_RST;
         } break;
         default: {
             //by default hardware reset
-            interrupt_routine_addr_lsb = NES_CPU_RST_ADDR_LSB;
-            interrupt_routine_addr_msb = NES_CPU_RST_ADDR_MSB;
+            cpu->registers.pc = NES_CPU_INTERRUPT_VECTOR_RST;
         } break;
     }
 
-    cpu->registers.pc = interrupt_routine_addr_msb;
-    cpu->registers.pc <<= 8;
-    cpu->registers.pc += interrupt_routine_addr_lsb;
+    int x = ((nes_val*)cpu)[65532];
+    int y = ((nes_val*)cpu)[0xFFFC];
 
     //clear the other status values
     NesCpuFlagClearC(cpu);
@@ -99,6 +92,11 @@ nes_cpu_interrupt(NesCpu* cpu, NesCpuInterruptType interrupt_type) {
 }
 
 internal void
+nes_cpu_reset(NesCpu* cpu) {
+    nes_cpu_interrupt(cpu, NesCpuInterruptType::RST);
+}
+
+internal void
 nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
     nes_addr address = 0;
@@ -109,6 +107,9 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
         
         case NesCpuAddressMode::zero_page: {
 
+            sprintf(cpu->debug_info.addr_mode_str,"MODE: ZP   ");
+
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
             NesCpuMemoryReadAndIncrimentProgramCounter(cpu, address);
 
             cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
@@ -117,6 +118,9 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
         case NesCpuAddressMode::zero_page_indexed_x: {
 
+            sprintf(cpu->debug_info.addr_mode_str,"MODE: ZP-X ");
+
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
             NesCpuMemoryReadAndIncrimentProgramCounterIndexed(cpu, cpu->registers.ir_x, address);
 
             cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
@@ -125,6 +129,9 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
         case NesCpuAddressMode::zero_page_indexed_y: {
 
+            sprintf(cpu->debug_info.addr_mode_str,"MODE: ZP-Y ");
+
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
             NesCpuMemoryReadAndIncrimentProgramCounterIndexed(cpu, cpu->registers.ir_y, address);
 
             cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
@@ -132,8 +139,12 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
         } break;
 
         case NesCpuAddressMode::absolute: {
-            
+
+            sprintf(cpu->debug_info.addr_mode_str,"MODE:  ABS ");
+
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
             NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_lower);
+            sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
             NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_upper);
 
             address = (addr_upper << 8) + addr_lower;
@@ -144,8 +155,13 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
         case NesCpuAddressMode::absolute_indexed_x: {
 
+            sprintf(cpu->debug_info.addr_mode_str,"MODE: ABS-X");
+
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
             NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_lower);
+            sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
             NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_upper);
+
 
             address = (addr_upper << 8) + addr_lower + cpu->registers.ir_x;
 
@@ -158,8 +174,13 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
         case NesCpuAddressMode::absolute_indexed_y: {
 
+            sprintf(cpu->debug_info.addr_mode_str,"MODE: ABS-Y");
+            
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
             NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_lower);
+            sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
             NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_upper);
+
 
             address = (addr_upper << 8) + addr_lower + cpu->registers.ir_y;
 
@@ -172,11 +193,16 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
         case NesCpuAddressMode::indirect: {
 
+            sprintf(cpu->debug_info.addr_mode_str,"MODE:  IND ");
+
             nes_addr addr_indirect_lower = 0;
             nes_addr addr_indirect_upper = 0;
 
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_indirect_lower);
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_indirect_upper);
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
+            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_lower);
+            sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
+            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_upper);
+
 
             nes_addr indirect_addr = (addr_indirect_upper << 8) + addr_indirect_lower;
 
@@ -190,28 +216,45 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
         } break;
 
         //nothing to do, no memory used
-        case NesCpuAddressMode::implied: break;
-        
-        case NesCpuAddressMode::accumulator: break;
+        case NesCpuAddressMode::implied: {
 
+            sprintf(cpu->debug_info.addr_mode_str,"MODE:  IMP ");
+
+        } break;
+        
+        case NesCpuAddressMode::accumulator: {
+
+            sprintf(cpu->debug_info.addr_mode_str,"MODE:  ACC ");
+            
             cpu->current_instr.operand_addr = &cpu->registers.acc_a;
+            
+        } break;
 
         case NesCpuAddressMode::immediate: {
+            
+            sprintf(cpu->debug_info.addr_mode_str,"MODE:  IMM ");
 
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
             NesCpuMemoryReadAndIncrimentProgramCounter(cpu, *cpu->current_instr.operand_addr);
 
         } break;
 
         case NesCpuAddressMode::relative: {
 
+            sprintf(cpu->debug_info.addr_mode_str,"MODE:  REL ");
+
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
             NesCpuMemoryReadAndIncrimentProgramCounter(cpu, *cpu->current_instr.operand_addr);
 
         } break;
 
         case NesCpuAddressMode::indexed_indirect_x: {
 
+            sprintf(cpu->debug_info.addr_mode_str,"MODE: IND-X");
+
             nes_addr zero_page_addr = 0;
 
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
             NesCpuMemoryReadAndIncrimentProgramCounter(cpu, zero_page_addr);
 
             nes_addr addr_indirect_lower = NesCpuMemoryRead(cpu,zero_page_addr + cpu->registers.ir_x);
@@ -225,8 +268,12 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
         case NesCpuAddressMode::indirect_indexed_y: {
 
+            sprintf(cpu->debug_info.addr_mode_str,"MODE: IND-Y");
+
             nes_addr zero_page_addr = 0;
 
+
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
             NesCpuMemoryReadAndIncrimentProgramCounter(cpu, zero_page_addr);
 
             nes_addr addr_indirect_lower = NesCpuMemoryRead(cpu,zero_page_addr);
@@ -269,6 +316,8 @@ nes_cpu_instr_adc(NesCpu* cpu) {
     cpu->current_instr.result.flag_z = TRUE;
     cpu->current_instr.result.flag_c = TRUE;
     cpu->current_instr.result.flag_v = TRUE;
+
+    cpu->debug_info.op_code_str = "INSTR: ADC";
 }
 
 internal void
@@ -280,6 +329,8 @@ nes_cpu_instr_and(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+
+    cpu->debug_info.op_code_str = "INSTR: AND";
 }
 
 internal void
@@ -288,6 +339,8 @@ nes_cpu_instr_asl(NesCpu* cpu) {
     cpu->current_instr.result.value = *cpu->current_instr.operand_addr << 1;
 
     *cpu->current_instr.operand_addr = (nes_val)cpu->current_instr.result.value;
+    
+    cpu->debug_info.op_code_str = "INSTR: ASL";
 }
 
 internal void
@@ -296,6 +349,8 @@ nes_cpu_instr_bcc(NesCpu* cpu) {
     if (NesCpuFlagReadC(cpu) == 0) {
         nes_cpu_branch_and_update_cycles(cpu);
     }
+    
+    cpu->debug_info.op_code_str = "INSTR: BCC";
 }
 
 internal void
@@ -304,6 +359,8 @@ nes_cpu_instr_bcs(NesCpu* cpu) {
     if (NesCpuFlagReadC(cpu) == 1) {
         nes_cpu_branch_and_update_cycles(cpu);
     }
+    
+    cpu->debug_info.op_code_str = "INSTR: BCS";
 }
 
 internal void
@@ -312,6 +369,8 @@ nes_cpu_instr_beq(NesCpu* cpu) {
     if (NesCpuFlagReadZ(cpu) == 1) {
         nes_cpu_branch_and_update_cycles(cpu);
     }
+
+    cpu->debug_info.op_code_str = "INSTR: BEQ";
 }
 
 internal void
@@ -332,6 +391,8 @@ nes_cpu_instr_bit(NesCpu* cpu) {
     //the result of A and Operand will be used for the zero flag
     cpu->current_instr.result.value = (cpu->registers.acc_a & *cpu->current_instr.operand_addr);
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: BIT";
 }
 
 internal void
@@ -340,6 +401,8 @@ nes_cpu_instr_bmi(NesCpu* cpu) {
     if (NesCpuFlagReadN(cpu) == 1) {
         nes_cpu_branch_and_update_cycles(cpu);
     }
+    
+    cpu->debug_info.op_code_str = "INSTR: BMI";
 }
 
 internal void
@@ -348,6 +411,8 @@ nes_cpu_instr_bne(NesCpu* cpu) {
     if (NesCpuFlagReadZ(cpu) == 0) {
         nes_cpu_branch_and_update_cycles(cpu);
     }
+    
+    cpu->debug_info.op_code_str = "INSTR: BNE";
 }
 
 internal void
@@ -356,48 +421,64 @@ nes_cpu_instr_bpl(NesCpu* cpu) {
     if (NesCpuFlagReadN(cpu) == 0) {
         nes_cpu_branch_and_update_cycles(cpu);
     }
+    
+    cpu->debug_info.op_code_str = "INSTR: BPL";
 }
 
 internal void
 nes_cpu_instr_brk(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_b = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: BRK";
 }
 
 internal void
 nes_cpu_instr_bvc(NesCpu* cpu) {
     
     cpu->registers.pc += NesCpuFlagReadV(cpu) == 0 ? *cpu->current_instr.operand_addr : 0;
+    
+    cpu->debug_info.op_code_str = "INSTR: BVC";
 }
 
 internal void
 nes_cpu_instr_bvs(NesCpu* cpu) {
     
     cpu->registers.pc += NesCpuFlagReadV(cpu) == 1 ? *cpu->current_instr.operand_addr : 0;
+    
+    cpu->debug_info.op_code_str = "INSTR: BVS";
 }
 
 internal void
 nes_cpu_instr_clc(NesCpu* cpu) {
     
     NesCpuFlagClearC(cpu);
+    
+    cpu->debug_info.op_code_str = "INSTR: CLC";
 }
 
 internal void
 nes_cpu_instr_cld(NesCpu* cpu) {
     
     NesCpuFlagClearD(cpu);
+    
+    cpu->debug_info.op_code_str = "INSTR: CLD";
 }
 
 internal void
 nes_cpu_instr_cli(NesCpu* cpu) {
 
     NesCpuFlagClearI(cpu);
+    
+    cpu->debug_info.op_code_str = "INSTR: CLI";
 }
 
 internal void
 nes_cpu_instr_clv(NesCpu* cpu) {
     
     NesCpuFlagClearV(cpu);
+    
+    cpu->debug_info.op_code_str = "INSTR: CLV";
 }
 
 internal void
@@ -408,6 +489,8 @@ nes_cpu_instr_cmp(NesCpu* cpu) {
     cpu->current_instr.result.flag_c = TRUE;
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: CMP";
 }
 
 internal void
@@ -418,6 +501,8 @@ nes_cpu_instr_cpx(NesCpu* cpu) {
     cpu->current_instr.result.flag_c = TRUE;
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: CPX";
 }
 
 internal void
@@ -428,6 +513,8 @@ nes_cpu_instr_cpy(NesCpu* cpu) {
     cpu->current_instr.result.flag_c = TRUE;
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: CPY";
 }
 
 internal void
@@ -439,6 +526,8 @@ nes_cpu_instr_dec(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: DEC";
 }
 
 internal void
@@ -450,6 +539,8 @@ nes_cpu_instr_dex(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: DEX";
 }
 
 internal void
@@ -461,6 +552,8 @@ nes_cpu_instr_dey(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: DEY";
 }
 
 internal void
@@ -472,6 +565,8 @@ nes_cpu_instr_eor(NesCpu* cpu) {
  
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: EOR";
 }
 
 internal void
@@ -483,6 +578,8 @@ nes_cpu_instr_inc(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: INC";
 }
 
 internal void
@@ -494,6 +591,8 @@ nes_cpu_instr_inx(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: INX";
 }
 
 internal void
@@ -505,12 +604,16 @@ nes_cpu_instr_iny(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: INY";
 }
 
 internal void
 nes_cpu_instr_jmp(NesCpu* cpu) {
 
     cpu->registers.pc = *cpu->current_instr.operand_addr;
+    
+    cpu->debug_info.op_code_str = "INSTR: JMP";
 }
 
 internal void
@@ -519,6 +622,8 @@ nes_cpu_instr_jsr(NesCpu* cpu) {
     nes_cpu_stack_push(cpu, cpu->registers.sp);
 
     cpu->registers.pc = *cpu->current_instr.operand_addr;
+    
+    cpu->debug_info.op_code_str = "INSTR: JSR";
 }
 
 internal void
@@ -530,6 +635,8 @@ nes_cpu_instr_lda(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: LDA";
 }
 
 internal void
@@ -541,6 +648,8 @@ nes_cpu_instr_ldx(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: LDX";
 }
 
 internal void
@@ -552,6 +661,8 @@ nes_cpu_instr_ldy(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: LDY";
 }
 
 internal void
@@ -565,12 +676,16 @@ nes_cpu_instr_lsr(NesCpu* cpu) {
     cpu->current_instr.result.flag_c = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
     NesCpuFlagClearN(cpu);
+    
+    cpu->debug_info.op_code_str = "INSTR: LSR";
 }
 
 internal void
 nes_cpu_instr_nop(NesCpu* cpu) {
     
     //¯\_(ツ)_/¯
+    
+    cpu->debug_info.op_code_str = "INSTR: NOP";
 }
 
 internal void
@@ -582,12 +697,16 @@ nes_cpu_instr_ora(NesCpu* cpu) {
  
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: ORA";
 }
 
 internal void
 nes_cpu_instr_pha(NesCpu* cpu) {
 
     nes_cpu_stack_push(cpu, cpu->registers.acc_a);
+    
+    cpu->debug_info.op_code_str = "INSTR: PHA";
 }
 
 internal void
@@ -605,12 +724,16 @@ nes_cpu_instr_pla(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: PLA";
 }
 
 internal void
 nes_cpu_instr_plp(NesCpu* cpu) {
     
     cpu->registers.p = nes_cpu_stack_pull(cpu);
+    
+    cpu->debug_info.op_code_str = "INSTR: PLP";
 }
 
 internal void
@@ -626,6 +749,8 @@ nes_cpu_instr_rol(NesCpu* cpu) {
     cpu->current_instr.result.flag_c = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
     cpu->current_instr.result.flag_n = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: ROL";
 }
 
 internal void
@@ -640,6 +765,8 @@ nes_cpu_instr_ror(NesCpu* cpu) {
     cpu->current_instr.result.flag_c = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
     cpu->current_instr.result.flag_n = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: ROR";
 }
 
 internal void
@@ -649,12 +776,16 @@ nes_cpu_instr_rti(NesCpu* cpu) {
     cpu->registers.pc = nes_cpu_stack_pull(cpu);
 
     NesCpuFlagClearB(cpu);
+    
+    cpu->debug_info.op_code_str = "INSTR: RTI";
 }
 
 internal void
 nes_cpu_instr_rts(NesCpu* cpu) {
 
     cpu->registers.pc = nes_cpu_stack_pull(cpu) + 1;
+    
+    cpu->debug_info.op_code_str = "INSTR: RTS";
 }
 
 internal void
@@ -669,42 +800,56 @@ nes_cpu_instr_sbc(NesCpu* cpu) {
     cpu->current_instr.result.flag_c = TRUE;
     cpu->current_instr.result.flag_v = TRUE;
     
+    cpu->debug_info.op_code_str = "INSTR: SBC";
+    
 }
 
 internal void
 nes_cpu_instr_sec(NesCpu* cpu) {
     
     NesCpuFlagSetC(cpu);
+    
+    cpu->debug_info.op_code_str = "INSTR: SEC";
 }
 
 internal void
 nes_cpu_instr_sed(NesCpu* cpu) {
     
     NesCpuFlagSetD(cpu);
+    
+    cpu->debug_info.op_code_str = "INSTR: SED";
 }
 
 internal void
 nes_cpu_instr_sei(NesCpu* cpu) {
     
     NesCpuFlagSetI(cpu);
+    
+    cpu->debug_info.op_code_str = "INSTR: SEI";
 }
 
 internal void
 nes_cpu_instr_sta(NesCpu* cpu) {
     
     *cpu->current_instr.operand_addr = cpu->registers.acc_a;
+
+    cpu->debug_info.op_code_str = "INSTR: STA";
 }
 
 internal void
 nes_cpu_instr_stx(NesCpu* cpu) {
     
     *cpu->current_instr.operand_addr = cpu->registers.ir_x;
+    
+    cpu->debug_info.op_code_str = "INSTR: STX";
 }
 
 internal void
 nes_cpu_instr_sty(NesCpu* cpu) {
     
     *cpu->current_instr.operand_addr = cpu->registers.ir_y;
+    
+    cpu->debug_info.op_code_str = "INSTR: STY";
 }
 
 internal void
@@ -716,6 +861,8 @@ nes_cpu_instr_tax(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: TAX";
 }
 
 internal void
@@ -727,6 +874,8 @@ nes_cpu_instr_tay(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: TAY";
 }
 
 internal void
@@ -738,6 +887,8 @@ nes_cpu_instr_tsx(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: TSX";
 }
 
 internal void
@@ -749,12 +900,16 @@ nes_cpu_instr_txa(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: TXA";
 }
 
 internal void 
 nes_cpu_instr_txs(NesCpu* cpu) {
     
     cpu->registers.sp = cpu->registers.ir_x;
+    
+    cpu->debug_info.op_code_str = "INSTR: TXS";
 }
 
 internal void
@@ -766,6 +921,8 @@ nes_cpu_instr_tya(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_n = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
+    
+    cpu->debug_info.op_code_str = "INSTR: TYA";
 }
 
 internal void
@@ -1174,6 +1331,7 @@ nes_cpu_instr_execute(NesCpu* cpu) {
     //add any cycles from branches
     //if a branch didn't orrur, it will just be 0
     cpu->current_instr.result.cycles += cpu->current_instr.result.branch_cycles;
+    sprintf(cpu->debug_info.cyc_str, "CYC: %d",cpu->current_instr.result.cycles);
 }
 
 internal void
@@ -1198,16 +1356,79 @@ nes_cpu_flag_check(NesCpu* cpu) {
 }
 
 internal void
-nes_cpu_log_current_instr(NesCpu* cpu) {
+nes_cpu_create_and_intialize_debug_info(NesCpu* cpu) {
 
-    char pc_str[50];
-    sprintf(pc_str, "PC: $%04x",cpu->registers.pc);
 
-    sprintf(cpu->debug_str, pc_str);
+    cpu->debug_info.pc_str          = (char*)malloc(sizeof(char) * 10);
+    cpu->debug_info.acc_str         = (char*)malloc(sizeof(char) * 8);
+    cpu->debug_info.sp_str          = (char*)malloc(sizeof(char) * 14);
+    cpu->debug_info.op_code_str     = (char*)malloc(sizeof(char) * 10);
+    cpu->debug_info.ind_x_str       = (char*)malloc(sizeof(char) * 10);
+    cpu->debug_info.ind_y_str       = (char*)malloc(sizeof(char) * 10);
+    cpu->debug_info.pc_p0_val_str   = (char*)malloc(sizeof(char) * 8);
+    cpu->debug_info.pc_p1_val_str   = (char*)malloc(sizeof(char) * 8);
+    cpu->debug_info.pc_p2_val_str   = (char*)malloc(sizeof(char) * 8);
+    cpu->debug_info.addr_mode_str   = (char*)malloc(sizeof(char) * 20);
+    cpu->debug_info.cyc_str         = (char*)malloc(sizeof(char) * 10);
+    cpu->debug_info.debug_str       = (char*)malloc(sizeof(char) * 256);
+}
+
+internal void
+nes_cpu_destroy_and_free_debug_info(NesCpu* cpu) {
+
+    cpu->debug_info = {0};
+    free(cpu->debug_info.pc_str);
+    free(cpu->debug_info.acc_str);
+    free(cpu->debug_info.sp_str);
+    free(cpu->debug_info.op_code_str);
+    free(cpu->debug_info.ind_x_str);
+    free(cpu->debug_info.ind_y_str);
+    free(cpu->debug_info.pc_p0_val_str);
+    free(cpu->debug_info.pc_p1_val_str);
+    free(cpu->debug_info.pc_p2_val_str);
+    free(cpu->debug_info.cyc_str);
+    free(cpu->debug_info.debug_str);
+}
+
+internal void
+nes_cpu_log_register_values(NesCpu* cpu) {
+
+    sprintf(cpu->debug_info.pc_p0_val_str,     "PC+0: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
+    sprintf(cpu->debug_info.pc_str,            "PC: $%04X",cpu->registers.pc);
+    sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: --");
+    sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: --");
+    sprintf(cpu->debug_info.acc_str,           "ACC: %02X",cpu->registers.acc_a);
+    sprintf(cpu->debug_info.sp_str,            "SP: $%02X -> %02X",cpu->registers.sp, NesCpuMemoryRead(cpu,cpu->registers.sp));
+    sprintf(cpu->debug_info.ind_x_str,         "IND X: %02X",cpu->registers.ir_x);
+    sprintf(cpu->debug_info.ind_y_str,         "IND Y: %02X",cpu->registers.ir_y);
+}
+
+internal void
+nes_cpu_log_debug_info(NesCpu* cpu) {
+
+    sprintf(cpu->debug_info.debug_str, 
+    " %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s ",
+    cpu->debug_info.pc_str,
+    cpu->debug_info.pc_p0_val_str,
+    cpu->debug_info.pc_p1_val_str,
+    cpu->debug_info.pc_p2_val_str,
+    cpu->debug_info.op_code_str,
+    cpu->debug_info.addr_mode_str,
+    cpu->debug_info.cyc_str,
+    cpu->debug_info.acc_str,
+    cpu->debug_info.ind_x_str,
+    cpu->debug_info.ind_y_str,
+    cpu->debug_info.sp_str);
+
 }
 
 internal void
 nes_cpu_tick(NesCpu* cpu) {
+
+    nes_cpu_destroy_and_free_debug_info(cpu);
+    nes_cpu_create_and_intialize_debug_info(cpu);
+
+    nes_cpu_log_register_values(cpu);
 
     //set the previous instruction and clear current instruction
     cpu->previous_instr = cpu->current_instr;
@@ -1228,19 +1449,15 @@ nes_cpu_tick(NesCpu* cpu) {
     //check the flags affected by the result
     nes_cpu_flag_check(cpu);
 
-#if NES_CPU_DEBUG_LOG
-
-    nes_cpu_log_current_instr(cpu);
-
-#endif  
+    nes_cpu_log_debug_info(cpu);
 }
 
 internal NesCpu
 nes_cpu_create_and_initialize() {
 
     NesCpu cpu = {0};
-    cpu.registers.pc = NES_CPU_MEM_MAP_LOWER_PRG_ROM_ADDR;
-    cpu.registers.sp = NES_CPU_MEM_MAP_STACK_ADDR + NES_CPU_MEM_MAP_STACK_SIZE;
+    //todo - create constant
+    cpu.registers.sp = 0xFD;
 
     return cpu;
 }

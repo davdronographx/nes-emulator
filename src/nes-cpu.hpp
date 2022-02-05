@@ -27,6 +27,8 @@ struct NesCpuRegisters {
 
 #define NES_CPU_MEM_MAP_STACK_ADDR      0x0100
 #define NES_CPU_MEM_MAP_STACK_SIZE      0x0100
+#define NES_CPU_MEM_MAP_STACK_PTR_BEGIN 0xFF
+#define NES_CPU_MEM_MAP_STACK_PTR_END   0x00
 
 #define NES_CPU_MEM_MAP_RAM_ADDR        0x0200
 #define NES_CPU_MEM_MAP_RAM_SIZE        0x0600
@@ -193,6 +195,8 @@ struct NesCpuInstrResult {
     b32 page_boundary_crossed;
 };
 
+
+
 struct NesCpuInstruction {
     nes_val op_code;
     nes_val* operand_addr;
@@ -200,12 +204,27 @@ struct NesCpuInstruction {
     NesCpuInstrResult result;
 };
 
+struct NesCpuDebugInfo {
+    char* pc_str;
+    char* pc_p0_val_str;
+    char* pc_p1_val_str;
+    char* pc_p2_val_str;
+    char* op_code_str;
+    char* addr_mode_str;
+    char* cyc_str;
+    char* acc_str;
+    char* ind_x_str;
+    char* ind_y_str;
+    char* sp_str;
+    char* debug_str;
+};
+
 struct NesCpu {
     NesCpuMemoryMap mem_map;
     NesCpuRegisters registers;    
     NesCpuInstruction current_instr;
     NesCpuInstruction previous_instr;
-    char* debug_str;
+    NesCpuDebugInfo debug_info;
 };
 
 enum NesCpuInterruptType {
@@ -214,14 +233,9 @@ enum NesCpuInterruptType {
     RST
 };
 
-#define NES_CPU_IRQ_ADDR_MSB 0xFFFF
-#define NES_CPU_IRQ_ADDR_LSB 0xFFFE
-
-#define NES_CPU_NMI_ADDR_MSB 0xFFFB
-#define NES_CPU_NMI_ADDR_LSB 0xFFFA
-
-#define NES_CPU_RST_ADDR_LSB 0xFFFD
-#define NES_CPU_RST_ADDR_MSB 0xFFFC 
+#define NES_CPU_INTERRUPT_VECTOR_NMI 0xFFFA
+#define NES_CPU_INTERRUPT_VECTOR_RST 0xFFFC
+#define NES_CPU_INTERRUPT_VECTOR_BRK 0xFFFE
 
 ////////////////////////////////////
 // NES CPU INSTRUCTIONS

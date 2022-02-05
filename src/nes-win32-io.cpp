@@ -28,7 +28,7 @@ nes_win32_io_open_and_write_file(char* file_name, char* write_str, u32 write_str
     OVERLAPPED overlapped = {0};
     b32 write_result = WriteFileEx(file_handle,
                                    write_str,
-                                   write_str_size,
+                                   strlen(write_str),
                                    &overlapped,
                                    nes_win32_io_completion_routine);
 
