@@ -1,24 +1,17 @@
 #include "nes-cpu.hpp"
 
 internal void
-nes_cpu_update_prg_rom(NesCpu* cpu, nes_val* low_bank, nes_val* high_bank) {
-
-    memmove(cpu->mem_map.prg_rom.lower_bank, low_bank,  NES_CPU_MEM_MAP_LOWER_PRG_ROM_SIZE); 
-    memmove(cpu->mem_map.prg_rom.upper_bank, high_bank, NES_CPU_MEM_MAP_UPPER_PRG_ROM_SIZE); 
-}
-
-internal void
 nes_cpu_stack_push(NesCpu* cpu, nes_val value) {
 
-    NesCpuMemoryWrite(cpu, (cpu->registers.sp + NES_CPU_MEM_MAP_STACK_ADDR), value);
+    nes_memory_map_write(&cpu->mem_map, (cpu->registers.sp + NES_MEM_MAP_STACK_ADDR), value);
     
     //the stack goes in reverse, so if we are getting down to the beginning
     //of the stack's address space, we need to reset the stack pointer to the
     //top
 
     //otherwise, we just decrement the stack pointer
-    if (cpu->registers.sp == NES_CPU_MEM_MAP_STACK_PTR_END) {
-        cpu->registers.sp = NES_CPU_MEM_MAP_STACK_PTR_BEGIN;
+    if (cpu->registers.sp == NES_MEM_MAP_STACK_PTR_END) {
+        cpu->registers.sp = NES_MEM_MAP_STACK_PTR_BEGIN;
     } else {
         --cpu->registers.sp;
     }
@@ -27,14 +20,14 @@ nes_cpu_stack_push(NesCpu* cpu, nes_val value) {
 internal nes_val
 nes_cpu_stack_pull(NesCpu* cpu) {
 
-    nes_val stack_val = NesCpuMemoryRead(cpu, (NES_CPU_MEM_MAP_STACK_ADDR + cpu->registers.sp));
+    nes_val stack_val = nes_memory_map_read(&cpu->mem_map, (NES_MEM_MAP_STACK_ADDR + cpu->registers.sp));
 
     //update the stack pointer
     //the stack is reverse, so we incriment the pointer
     //if it gets to the top of the stack's address space,
     //it needs to be reset to the bottom 
-    if (cpu->registers.sp == NES_CPU_MEM_MAP_STACK_PTR_BEGIN) {
-        cpu->registers.sp = NES_CPU_MEM_MAP_STACK_PTR_END;
+    if (cpu->registers.sp == NES_MEM_MAP_STACK_PTR_BEGIN) {
+        cpu->registers.sp = NES_MEM_MAP_STACK_PTR_END;
     } else {
         ++cpu->registers.sp;
     }
@@ -42,13 +35,33 @@ nes_cpu_stack_pull(NesCpu* cpu) {
     return stack_val;
 }
 
+
+internal void 
+nes_cpu_flag_set(NesCpu* cpu, u8 flag) {
+
+    SetBitInByte(flag, cpu->registers.p);
+}
+
+internal void
+nes_cpu_flag_clear(NesCpu* cpu, u8 flag) {
+
+    ClearBitInByte(flag, cpu->registers.p);
+}
+
+internal u8
+nes_cpu_flag_read(NesCpu* cpu, u8 flag) {
+
+    return (ReadBitInByte(flag, cpu->registers.p));
+}
+
+
 internal void
 nes_cpu_interrupt(NesCpu* cpu, NesCpuInterruptType interrupt_type) {
 
     if (interrupt_type == NesCpuInterruptType::IRQ) {
         //this is a software interrupt, we start by pushing PC+2 to the stack as the return address
         //PC+1 is spacing for a break mark and is not needed
-        nes_cpu_stack_push(cpu, NesCpuMemoryRead(cpu, cpu->registers.pc+2));
+        nes_cpu_stack_push(cpu, nes_memory_map_read(&cpu->mem_map, cpu->registers.pc+2));
     } 
     else {
         //push the program counter onto the stack
@@ -79,17 +92,68 @@ nes_cpu_interrupt(NesCpu* cpu, NesCpuInterruptType interrupt_type) {
     int y = ((nes_val*)cpu)[0xFFFC];
 
     //clear the other status values
-    NesCpuFlagClearC(cpu);
-    NesCpuFlagClearZ(cpu);
-    NesCpuFlagClearI(cpu);
-    NesCpuFlagClearD(cpu);
-    NesCpuFlagClearB(cpu);
-    NesCpuFlagClearV(cpu);
-    NesCpuFlagClearN(cpu);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_C);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_Z);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_I);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_D);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_B);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_V);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_N);
 
     //set the result interrupt disable flag to true
-    NesCpuFlagSetI(cpu);
+    nes_cpu_flag_set(cpu,NES_CPU_FLAG_I);
 }
+
+internal void
+nes_cpu_flag_check(NesCpu* cpu, u8 flag) {
+        
+    u16 result = cpu->current_instr.result.value;
+
+    switch (flag) {
+        case NES_CPU_FLAG_C: {
+            if (result > 255) SetBitInByte(NES_CPU_FLAG_C,cpu->registers.p);
+        } break;
+        case NES_CPU_FLAG_Z: {
+            if (result == 0) SetBitInByte(NES_CPU_FLAG_Z,cpu->registers.p);
+        } break;
+        case NES_CPU_FLAG_V: {
+            if (result > 0xFF) SetBitInByte(NES_CPU_FLAG_V,cpu->registers.p);
+        } break;
+        case NES_CPU_FLAG_N: {
+            if (result > 127) SetBitInByte(NES_CPU_FLAG_N,cpu->registers.p);
+        } break;
+        case NES_CPU_FLAG_B: {
+            if (nes_cpu_flag_read(cpu,NES_CPU_FLAG_I) == 0) {
+                nes_cpu_interrupt(cpu, NesCpuInterruptType::IRQ);
+            }
+        } break;
+        default: break;
+    }
+}
+
+internal nes_val
+nes_cpu_program_read(NesCpu* cpu) {
+    
+    nes_val read_val = nes_memory_map_read(&cpu->mem_map, cpu->registers.pc);
+    ++cpu->registers.pc;
+    return (read_val);
+}
+
+internal nes_val
+nes_cpu_program_read_indexed(NesCpu* cpu, nes_val offset) {
+
+    nes_val read_val = (nes_cpu_program_read(cpu) + offset);
+    ++cpu->registers.pc;
+    return (read_val);
+}
+
+internal void
+nes_cpu_update_prg_rom(NesCpu* cpu, nes_val* low_bank, nes_val* high_bank) {
+
+    // memmove(cpu->mem_map.prg_rom.lower_bank, low_bank,  NES_MEM_MAP_LOWER_PRG_ROM_SIZE); 
+    // memmove(cpu->mem_map.prg_rom.upper_bank, high_bank, NES_MEM_MAP_UPPER_PRG_ROM_SIZE); 
+}
+
 
 internal void
 nes_cpu_reset(NesCpu* cpu) {
@@ -109,10 +173,10 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
             sprintf(cpu->debug_info.addr_mode_str,"MODE: ZP   ");
 
-            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, address);
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            address = nes_cpu_program_read(cpu);
 
-            cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
+            cpu->current_instr.operand_addr = nes_memory_map_address(&cpu->mem_map,address);
 
         } break;
 
@@ -120,10 +184,10 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
             sprintf(cpu->debug_info.addr_mode_str,"MODE: ZP-X ");
 
-            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounterIndexed(cpu, cpu->registers.ir_x, address);
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            address = nes_cpu_program_read_indexed(cpu, cpu->registers.ir_x);
 
-            cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
+            cpu->current_instr.operand_addr = nes_memory_map_address(&cpu->mem_map,address);
 
         } break;
 
@@ -131,10 +195,11 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
             sprintf(cpu->debug_info.addr_mode_str,"MODE: ZP-Y ");
 
-            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounterIndexed(cpu, cpu->registers.ir_y, address);
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            address = nes_cpu_program_read_indexed(cpu, cpu->registers.ir_y);
 
-            cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
+
+            cpu->current_instr.operand_addr = nes_memory_map_address(&cpu->mem_map,address);
             
         } break;
 
@@ -142,14 +207,14 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
             sprintf(cpu->debug_info.addr_mode_str,"MODE:  ABS ");
 
-            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_lower);
-            sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_upper);
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            addr_lower = nes_cpu_program_read(cpu);
+            sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            addr_upper = nes_cpu_program_read(cpu);
 
             address = (addr_upper << 8) + addr_lower;
 
-            cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
+            cpu->current_instr.operand_addr = nes_memory_map_address(&cpu->mem_map,address);
 
         } break;
 
@@ -157,15 +222,14 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
             sprintf(cpu->debug_info.addr_mode_str,"MODE: ABS-X");
 
-            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_lower);
-            sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_upper);
-
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            addr_lower = nes_cpu_program_read(cpu);
+            sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            addr_upper = nes_cpu_program_read(cpu);
 
             address = (addr_upper << 8) + addr_lower + cpu->registers.ir_x;
 
-            cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
+            cpu->current_instr.operand_addr = nes_memory_map_address(&cpu->mem_map,address);
 
             cpu->current_instr.result.page_boundary_crossed = 
                 (((addr_upper << 8) + addr_lower) & 0xFF00) != (address * 0xFF00);
@@ -176,15 +240,15 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
             sprintf(cpu->debug_info.addr_mode_str,"MODE: ABS-Y");
             
-            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_lower);
-            sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_upper);
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            addr_lower = nes_cpu_program_read(cpu);
+            sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            addr_upper = nes_cpu_program_read(cpu);
 
 
             address = (addr_upper << 8) + addr_lower + cpu->registers.ir_y;
 
-            cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
+            cpu->current_instr.operand_addr = nes_memory_map_address(&cpu->mem_map,address);
 
             cpu->current_instr.result.page_boundary_crossed = 
                 (((addr_upper << 8) + addr_lower) & 0xFF00) != (address * 0xFF00);
@@ -198,20 +262,19 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
             nes_addr addr_indirect_lower = 0;
             nes_addr addr_indirect_upper = 0;
 
-            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_lower);
-            sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, addr_upper);
-
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            addr_lower = nes_cpu_program_read(cpu);
+            sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            addr_upper = nes_cpu_program_read(cpu);
 
             nes_addr indirect_addr = (addr_indirect_upper << 8) + addr_indirect_lower;
 
-            addr_lower = NesCpuMemoryRead(cpu, indirect_addr);
-            addr_upper = NesCpuMemoryRead(cpu, indirect_addr + 1);
+            addr_lower = nes_memory_map_read(&cpu->mem_map, indirect_addr);
+            addr_upper = nes_memory_map_read(&cpu->mem_map, indirect_addr + 1);
 
             address = (addr_upper << 8) + addr_lower;
 
-            cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
+            cpu->current_instr.operand_addr = nes_memory_map_address(&cpu->mem_map,address);
 
         } break;
 
@@ -234,8 +297,8 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
             
             sprintf(cpu->debug_info.addr_mode_str,"MODE:  IMM ");
 
-            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, *cpu->current_instr.operand_addr);
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            *cpu->current_instr.operand_addr = nes_cpu_program_read(cpu);
 
         } break;
 
@@ -243,8 +306,8 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
             sprintf(cpu->debug_info.addr_mode_str,"MODE:  REL ");
 
-            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, *cpu->current_instr.operand_addr);
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            *cpu->current_instr.operand_addr = nes_cpu_program_read(cpu);
 
         } break;
 
@@ -254,15 +317,16 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
 
             nes_addr zero_page_addr = 0;
 
-            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, zero_page_addr);
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            zero_page_addr = nes_cpu_program_read(cpu);
 
-            nes_addr addr_indirect_lower = NesCpuMemoryRead(cpu,zero_page_addr + cpu->registers.ir_x);
-            nes_addr addr_indirect_upper = NesCpuMemoryRead(cpu,zero_page_addr + cpu->registers.ir_x + 1);
+
+            nes_addr addr_indirect_lower = nes_memory_map_read(&cpu->mem_map,zero_page_addr + cpu->registers.ir_x);
+            nes_addr addr_indirect_upper = nes_memory_map_read(&cpu->mem_map,zero_page_addr + cpu->registers.ir_x + 1);
 
             address = (addr_indirect_upper << 8) + addr_indirect_lower;
 
-            cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
+            cpu->current_instr.operand_addr = nes_memory_map_address(&cpu->mem_map,address);
 
         } break;
 
@@ -273,15 +337,15 @@ nes_cpu_decode_operand_address_from_address_mode(NesCpu* cpu) {
             nes_addr zero_page_addr = 0;
 
 
-            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
-            NesCpuMemoryReadAndIncrimentProgramCounter(cpu, zero_page_addr);
+            sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
+            zero_page_addr = nes_cpu_program_read(cpu);
 
-            nes_addr addr_indirect_lower = NesCpuMemoryRead(cpu,zero_page_addr);
-            nes_addr addr_indirect_upper = NesCpuMemoryRead(cpu,zero_page_addr + 1);
+            nes_addr addr_indirect_lower = nes_memory_map_read(&cpu->mem_map,zero_page_addr);
+            nes_addr addr_indirect_upper = nes_memory_map_read(&cpu->mem_map,zero_page_addr + 1);
 
             address = (addr_indirect_upper << 8) + addr_indirect_lower + cpu->registers.ir_y;
 
-            cpu->current_instr.operand_addr = NesCpuMemoryAddress(cpu,address);
+            cpu->current_instr.operand_addr = nes_memory_map_address(&cpu->mem_map,address);
 
             cpu->current_instr.result.page_boundary_crossed = 
                 (((addr_indirect_upper << 8) + addr_indirect_lower) & 0xFF00) != (address * 0xFF00);
@@ -308,7 +372,7 @@ nes_cpu_branch_and_update_cycles(NesCpu* cpu) {
 internal void
 nes_cpu_instr_adc(NesCpu* cpu) {
 
-    cpu->current_instr.result.value = cpu->registers.acc_a + *cpu->current_instr.operand_addr + NesCpuFlagReadC(cpu);
+    cpu->current_instr.result.value = cpu->registers.acc_a + *cpu->current_instr.operand_addr + nes_cpu_flag_read(cpu, NES_CPU_FLAG_C);
     
     cpu->registers.acc_a = (nes_val)cpu->current_instr.result.value;
 
@@ -346,7 +410,7 @@ nes_cpu_instr_asl(NesCpu* cpu) {
 internal void
 nes_cpu_instr_bcc(NesCpu* cpu) {
 
-    if (NesCpuFlagReadC(cpu) == 0) {
+    if (nes_cpu_flag_read(cpu, NES_CPU_FLAG_C) == 0) {
         nes_cpu_branch_and_update_cycles(cpu);
     }
     
@@ -356,7 +420,7 @@ nes_cpu_instr_bcc(NesCpu* cpu) {
 internal void
 nes_cpu_instr_bcs(NesCpu* cpu) {
 
-    if (NesCpuFlagReadC(cpu) == 1) {
+    if (nes_cpu_flag_read(cpu, NES_CPU_FLAG_C) == 1) {
         nes_cpu_branch_and_update_cycles(cpu);
     }
     
@@ -366,7 +430,7 @@ nes_cpu_instr_bcs(NesCpu* cpu) {
 internal void
 nes_cpu_instr_beq(NesCpu* cpu) {
 
-    if (NesCpuFlagReadZ(cpu) == 1) {
+    if (nes_cpu_flag_read(cpu,NES_CPU_FLAG_Z) == 1) {
         nes_cpu_branch_and_update_cycles(cpu);
     }
 
@@ -377,15 +441,15 @@ internal void
 nes_cpu_instr_bit(NesCpu* cpu) {
 
     //transfer bit 6 of operand to V flag
-    NesCpuFlagClearV(cpu);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_V);
     if (ReadBitInByte(6, *cpu->current_instr.operand_addr) == 1) {
-        NesCpuFlagSetV(cpu);
+        nes_cpu_flag_set(cpu,NES_CPU_FLAG_V);
     }
 
     //transfer bit 7 of operand to N flag
-    NesCpuFlagClearN(cpu);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_N);
     if (ReadBitInByte(7, *cpu->current_instr.operand_addr) == 1) {
-        NesCpuFlagSetN(cpu);
+        nes_cpu_flag_set(cpu,NES_CPU_FLAG_N);
     }
 
     //the result of A and Operand will be used for the zero flag
@@ -398,7 +462,7 @@ nes_cpu_instr_bit(NesCpu* cpu) {
 internal void
 nes_cpu_instr_bmi(NesCpu* cpu) {
 
-    if (NesCpuFlagReadN(cpu) == 1) {
+    if (nes_cpu_flag_read(cpu,NES_CPU_FLAG_N) == 1) {
         nes_cpu_branch_and_update_cycles(cpu);
     }
     
@@ -408,7 +472,7 @@ nes_cpu_instr_bmi(NesCpu* cpu) {
 internal void
 nes_cpu_instr_bne(NesCpu* cpu) {
 
-    if (NesCpuFlagReadZ(cpu) == 0) {
+    if (nes_cpu_flag_read(cpu,NES_CPU_FLAG_Z) == 0) {
         nes_cpu_branch_and_update_cycles(cpu);
     }
     
@@ -418,7 +482,7 @@ nes_cpu_instr_bne(NesCpu* cpu) {
 internal void
 nes_cpu_instr_bpl(NesCpu* cpu) {
     
-    if (NesCpuFlagReadN(cpu) == 0) {
+    if (nes_cpu_flag_read(cpu,NES_CPU_FLAG_N) == 0) {
         nes_cpu_branch_and_update_cycles(cpu);
     }
     
@@ -436,7 +500,7 @@ nes_cpu_instr_brk(NesCpu* cpu) {
 internal void
 nes_cpu_instr_bvc(NesCpu* cpu) {
     
-    cpu->registers.pc += NesCpuFlagReadV(cpu) == 0 ? *cpu->current_instr.operand_addr : 0;
+    cpu->registers.pc += nes_cpu_flag_read(cpu,NES_CPU_FLAG_V) == 0 ? *cpu->current_instr.operand_addr : 0;
     
     cpu->debug_info.op_code_str = "INSTR: BVC";
 }
@@ -444,7 +508,7 @@ nes_cpu_instr_bvc(NesCpu* cpu) {
 internal void
 nes_cpu_instr_bvs(NesCpu* cpu) {
     
-    cpu->registers.pc += NesCpuFlagReadV(cpu) == 1 ? *cpu->current_instr.operand_addr : 0;
+    cpu->registers.pc += nes_cpu_flag_read(cpu,NES_CPU_FLAG_V) == 1 ? *cpu->current_instr.operand_addr : 0;
     
     cpu->debug_info.op_code_str = "INSTR: BVS";
 }
@@ -452,7 +516,7 @@ nes_cpu_instr_bvs(NesCpu* cpu) {
 internal void
 nes_cpu_instr_clc(NesCpu* cpu) {
     
-    NesCpuFlagClearC(cpu);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_C);
     
     cpu->debug_info.op_code_str = "INSTR: CLC";
 }
@@ -460,7 +524,7 @@ nes_cpu_instr_clc(NesCpu* cpu) {
 internal void
 nes_cpu_instr_cld(NesCpu* cpu) {
     
-    NesCpuFlagClearD(cpu);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_D);
     
     cpu->debug_info.op_code_str = "INSTR: CLD";
 }
@@ -468,7 +532,7 @@ nes_cpu_instr_cld(NesCpu* cpu) {
 internal void
 nes_cpu_instr_cli(NesCpu* cpu) {
 
-    NesCpuFlagClearI(cpu);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_I);
     
     cpu->debug_info.op_code_str = "INSTR: CLI";
 }
@@ -476,7 +540,7 @@ nes_cpu_instr_cli(NesCpu* cpu) {
 internal void
 nes_cpu_instr_clv(NesCpu* cpu) {
     
-    NesCpuFlagClearV(cpu);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_V);
     
     cpu->debug_info.op_code_str = "INSTR: CLV";
 }
@@ -675,7 +739,7 @@ nes_cpu_instr_lsr(NesCpu* cpu) {
 
     cpu->current_instr.result.flag_c = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
-    NesCpuFlagClearN(cpu);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_N);
     
     cpu->debug_info.op_code_str = "INSTR: LSR";
 }
@@ -744,7 +808,7 @@ nes_cpu_instr_rol(NesCpu* cpu) {
     
     *cpu->current_instr.operand_addr = (nes_val)cpu->current_instr.result.value;
 
-    *cpu->current_instr.operand_addr += NesCpuFlagReadC(cpu);
+    *cpu->current_instr.operand_addr += nes_cpu_flag_read(cpu, NES_CPU_FLAG_C);
 
     cpu->current_instr.result.flag_c = TRUE;
     cpu->current_instr.result.flag_z = TRUE;
@@ -758,7 +822,7 @@ nes_cpu_instr_ror(NesCpu* cpu) {
     
     cpu->current_instr.result.value = *cpu->current_instr.operand_addr;
     cpu->current_instr.result.value >>= 1;
-    cpu->current_instr.result.value += (NesCpuFlagReadC(cpu) << 8);
+    cpu->current_instr.result.value += (nes_cpu_flag_read(cpu, NES_CPU_FLAG_C) << 8);
 
     cpu->current_instr.result.value = *cpu->current_instr.operand_addr;
 
@@ -775,7 +839,7 @@ nes_cpu_instr_rti(NesCpu* cpu) {
     cpu->registers.p = nes_cpu_stack_pull(cpu);
     cpu->registers.pc = nes_cpu_stack_pull(cpu);
 
-    NesCpuFlagClearB(cpu);
+    nes_cpu_flag_clear(cpu,NES_CPU_FLAG_B);
     
     cpu->debug_info.op_code_str = "INSTR: RTI";
 }
@@ -791,7 +855,7 @@ nes_cpu_instr_rts(NesCpu* cpu) {
 internal void
 nes_cpu_instr_sbc(NesCpu* cpu) {
     
-    cpu->current_instr.result.value = cpu->registers.acc_a - *cpu->current_instr.operand_addr - NesCpuFlagReadC(cpu);
+    cpu->current_instr.result.value = cpu->registers.acc_a - *cpu->current_instr.operand_addr - nes_cpu_flag_read(cpu, NES_CPU_FLAG_C);
     
     cpu->registers.acc_a = (nes_val)cpu->current_instr.result.value;
 
@@ -807,7 +871,7 @@ nes_cpu_instr_sbc(NesCpu* cpu) {
 internal void
 nes_cpu_instr_sec(NesCpu* cpu) {
     
-    NesCpuFlagSetC(cpu);
+    nes_cpu_flag_set(cpu,NES_CPU_FLAG_C);
     
     cpu->debug_info.op_code_str = "INSTR: SEC";
 }
@@ -815,7 +879,7 @@ nes_cpu_instr_sec(NesCpu* cpu) {
 internal void
 nes_cpu_instr_sed(NesCpu* cpu) {
     
-    NesCpuFlagSetD(cpu);
+    nes_cpu_flag_set(cpu,NES_CPU_FLAG_D);
     
     cpu->debug_info.op_code_str = "INSTR: SED";
 }
@@ -823,7 +887,7 @@ nes_cpu_instr_sed(NesCpu* cpu) {
 internal void
 nes_cpu_instr_sei(NesCpu* cpu) {
     
-    NesCpuFlagSetI(cpu);
+    nes_cpu_flag_set(cpu,NES_CPU_FLAG_I);
     
     cpu->debug_info.op_code_str = "INSTR: SEI";
 }
@@ -1339,25 +1403,24 @@ nes_cpu_flag_check(NesCpu* cpu) {
     
     //check the flags
     if (cpu->current_instr.result.flag_c) {
-        NesCpuFlagCheckC(cpu, cpu->current_instr.result.value);
+        nes_cpu_flag_check(cpu,NES_CPU_FLAG_C);
     }
     if (cpu->current_instr.result.flag_z) {
-        NesCpuFlagCheckZ(cpu, cpu->current_instr.result.value);
+        nes_cpu_flag_check(cpu,NES_CPU_FLAG_Z);
     }
-    if (cpu->current_instr.result.flag_b && NesCpuFlagReadI(cpu) == 0) {
-        nes_cpu_interrupt(cpu, NesCpuInterruptType::IRQ);
+    if (cpu->current_instr.result.flag_b) {
+        nes_cpu_flag_check(cpu,NES_CPU_FLAG_B);
     }
     if (cpu->current_instr.result.flag_v) {
-        NesCpuFlagCheckV(cpu, cpu->current_instr.result.value);
+        nes_cpu_flag_check(cpu,NES_CPU_FLAG_V);
     }
     if (cpu->current_instr.result.flag_n) {
-        NesCpuFlagCheckN(cpu, cpu->current_instr.result.value);
+        nes_cpu_flag_check(cpu,NES_CPU_FLAG_N);
     }
 }
 
 internal void
 nes_cpu_create_and_intialize_debug_info(NesCpu* cpu) {
-
 
     cpu->debug_info.pc_str          = (char*)malloc(sizeof(char) * 10);
     cpu->debug_info.acc_str         = (char*)malloc(sizeof(char) * 8);
@@ -1393,12 +1456,12 @@ nes_cpu_destroy_and_free_debug_info(NesCpu* cpu) {
 internal void
 nes_cpu_log_register_values(NesCpu* cpu) {
 
-    sprintf(cpu->debug_info.pc_p0_val_str,     "PC+0: %02X",NesCpuMemoryRead(cpu,cpu->registers.pc));
+    sprintf(cpu->debug_info.pc_p0_val_str,     "PC+0: %02X",nes_memory_map_read(&cpu->mem_map,cpu->registers.pc));
     sprintf(cpu->debug_info.pc_str,            "PC: $%04X",cpu->registers.pc);
     sprintf(cpu->debug_info.pc_p1_val_str,     "PC+1: --");
     sprintf(cpu->debug_info.pc_p2_val_str,     "PC+2: --");
     sprintf(cpu->debug_info.acc_str,           "ACC: %02X",cpu->registers.acc_a);
-    sprintf(cpu->debug_info.sp_str,            "SP: $%02X -> %02X",cpu->registers.sp, NesCpuMemoryRead(cpu,cpu->registers.sp));
+    sprintf(cpu->debug_info.sp_str,            "SP: $%02X -> %02X",cpu->registers.sp, nes_memory_map_read(&cpu->mem_map,cpu->registers.sp));
     sprintf(cpu->debug_info.ind_x_str,         "IND X: %02X",cpu->registers.ir_x);
     sprintf(cpu->debug_info.ind_y_str,         "IND Y: %02X",cpu->registers.ir_y);
 }
@@ -1435,7 +1498,7 @@ nes_cpu_tick(NesCpu* cpu) {
     cpu->current_instr = {0};
 
     //get the instruction
-    NesCpuMemoryReadAndIncrimentProgramCounter(cpu, cpu->current_instr.op_code);
+    cpu->current_instr.op_code = nes_cpu_program_read(cpu);
 
     //decode the address mode
     nes_cpu_addr_mode_decode_from_instr(cpu);
